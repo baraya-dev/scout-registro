@@ -3,18 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Registro Scout</title>
+  <title>Registro — Águilas Negras de San Agustín</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --verde: #2e7d32;
-      --verde-claro: #43a047;
-      --verde-fondo: #e8f5e9;
+      --verde: #1565c0;
+      --verde-claro: #1976d2;
+      --verde-fondo: #e3f2fd;
       --amarillo: #f9a825;
       --gris: #f5f5f5;
-      --borde: #c8e6c9;
-      --texto: #1b2a1b;
+      --borde: #bbdefb;
+      --texto: #0d1b2a;
       --error: #c62828;
       --sombra: 0 4px 18px rgba(0,0,0,0.10);
     }
@@ -29,24 +29,38 @@
 
     /* ── HEADER ── */
     header {
-      background: var(--verde);
+      background: linear-gradient(135deg, #0d47a1 0%, #1565c0 60%, #1976d2 100%);
       color: #fff;
-      padding: 28px 20px 24px;
+      padding: 32px 20px 28px;
       text-align: center;
       position: relative;
     }
     header .fleur-de-lis {
-      font-size: 48px;
+      font-size: 52px;
       line-height: 1;
       display: block;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,.3));
     }
-    header h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: 1px; }
-    header p  { font-size: 0.95rem; opacity: .85; margin-top: 4px; }
+    header h1 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      letter-spacing: .5px;
+      line-height: 1.25;
+      text-shadow: 0 1px 4px rgba(0,0,0,.25);
+    }
+    header .sub-org {
+      font-size: 0.82rem;
+      opacity: .8;
+      margin-top: 6px;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+    }
+    header p  { font-size: 0.9rem; opacity: .75; margin-top: 5px; }
 
     /* ── PROGRESS BAR ── */
     .progress-wrap {
-      background: #1b5e20;
+      background: #0d47a1;
       padding: 14px 20px;
       display: flex;
       justify-content: center;
@@ -71,6 +85,7 @@
       z-index: 0;
     }
     .step-dot.done:not(:last-child)::after { background: var(--amarillo); }
+
     .dot-circle {
       width: 28px; height: 28px;
       border-radius: 50%;
@@ -130,7 +145,7 @@
     .field label {
       font-size: .82rem;
       font-weight: 600;
-      color: var(--verde);
+      color: #1565c0;
       letter-spacing: .3px;
     }
     .field label .req { color: var(--error); margin-left: 2px; }
@@ -152,7 +167,7 @@
     .field textarea:focus {
       outline: none;
       border-color: var(--verde-claro);
-      box-shadow: 0 0 0 3px rgba(67,160,71,.15);
+      box-shadow: 0 0 0 3px rgba(25,118,210,.15);
       background: #fff;
     }
     .field input.error, .field select.error { border-color: var(--error); }
@@ -225,7 +240,7 @@
       padding: 50px 20px;
     }
     #success .check { font-size: 80px; }
-    #success h2 { font-size: 1.8rem; color: var(--verde); margin: 16px 0 8px; }
+    #success h2 { font-size: 1.8rem; color: #1565c0; margin: 16px 0 8px; }
     #success p  { color: #555; font-size: 1rem; max-width: 400px; margin: 0 auto 20px; }
     #success .folio {
       display: inline-block;
@@ -252,6 +267,7 @@
     /* ── RESUMEN ── */
     .resumen-group { margin-bottom: 20px; }
     .resumen-group h3 {
+      color: #1565c0 !important;
       font-size: .85rem;
       font-weight: 700;
       color: var(--verde);
@@ -279,7 +295,8 @@ const _sb = supabase.createClient('__SUPABASE_URL__', '__SUPABASE_ANON_KEY__');
 
 <header>
   <span class="fleur-de-lis">⚜️</span>
-  <h1>Portal de Registro Scout</h1>
+  <h1>Grupo Guías y Scouts<br>Águilas Negras de San Agustín</h1>
+  <div class="sub-org">Guías y Scouts de Chile</div>
   <p>Completa el formulario para inscribir a tu scout</p>
 </header>
 
