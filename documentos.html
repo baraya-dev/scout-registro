@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Documentos — Scout</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>const _sb = supabase.createClient('__SUPABASE_URL__','__SUPABASE_ANON_KEY__');</script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --verde:#2e7d32;--verde-claro:#43a047;--verde-fondo:#e8f5e9;
+      --amarillo:#f9a825;--borde:#c8e6c9;--texto:#1b2a1b;--gris:#f5f5f5;
+      --sidebar-w:230px;--header-h:58px;--sombra:0 4px 18px rgba(0,0,0,.09);
+    }
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f0;color:var(--texto);min-height:100vh}
+
+    /* ══ HEADER ══ */
+    .top-bar{position:fixed;top:0;left:0;right:0;height:var(--header-h);background:var(--verde);color:#fff;display:flex;align-items:center;gap:12px;padding:0 20px;z-index:200;box-shadow:0 2px 10px rgba(0,0,0,.2)}
+    .top-bar .logo{font-size:1.6rem;line-height:1}
+    .top-bar h1{font-size:1.05rem;font-weight:700}
+    .top-bar .sub{font-size:.72rem;opacity:.75;margin-top:1px}
+    .top-bar .spacer{flex:1}
+    .top-bar a.new-btn{background:rgba(255,255,255,.18);color:#fff;padding:7px 16px;border-radius:20px;font-size:.8rem;font-weight:600;text-decoration:none;border:1px solid rgba(255,255,255,.3)}
+    .hamburger{display:none;background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;padding:4px 8px}
+
+    /* ══ SIDEBAR ══ */
+    .sidebar{position:fixed;top:var(--header-h);left:0;bottom:0;width:var(--sidebar-w);background:#1b5e20;overflow-y:auto;z-index:150;transition:transform .25s}
+    .sidebar-section{padding:14px 12px 6px}
+    .sidebar-label{font-size:.65rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:rgba(255,255,255,.4);padding:0 8px 6px}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;color:rgba(255,255,255,.75);font-size:.88rem;cursor:pointer;user-select:none;transition:all .15s;text-decoration:none;margin-bottom:2px}
+    .nav-item:hover{background:rgba(255,255,255,.12);color:#fff}
+    .nav-item.active{background:var(--verde-claro);color:#fff;font-weight:600}
+    .nav-item .icon{font-size:1rem;width:20px;text-align:center}
+    .nav-item .arrow{margin-left:auto;font-size:.7rem;transition:transform .2s}
+    .nav-item.open .arrow{transform:rotate(90deg)}
+    .submenu{overflow:hidden;max-height:0;transition:max-height .3s ease}
+    .submenu.open{max-height:300px}
+    .sub-item{display:flex;align-items:center;gap:8px;padding:8px 12px 8px 40px;color:rgba(255,255,255,.65);font-size:.84rem;cursor:pointer;border-radius:8px;transition:all .15s;margin-bottom:2px}
+    .sub-item:hover{background:rgba(255,255,255,.1);color:#fff}
+    .sub-item.active{background:rgba(255,255,255,.15);color:#fff;font-weight:600}
+    .sub-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.4)}
+    .sub-item.active .sub-dot{background:var(--amarillo)}
+
+    /* ══ MAIN ══ */
+    .main{margin-left:var(--sidebar-w);margin-top:var(--header-h);padding:28px 24px 60px;min-height:calc(100vh - var(--header-h))}
+    .section{display:none}.section.active{display:block}
+    .page-title{font-size:1.35rem;font-weight:800;color:var(--verde);margin-bottom:4px}
+    .page-sub{font-size:.85rem;color:#777;margin-bottom:22px}
+
+    /* ══ PLANTILLAS GRID ══ */
+    .tpl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:28px}
+    @media(max-width:860px){.tpl-grid{grid-template-columns:1fr}}
+    .tpl-card{background:#fff;border-radius:14px;box-shadow:var(--sombra);padding:22px;cursor:pointer;border:2px solid transparent;transition:all .18s;position:relative}
+    .tpl-card:hover{border-color:var(--verde-claro);transform:translateY(-2px)}
+    .tpl-card.selected{border-color:var(--verde);background:#f1f8f1}
+    .tpl-icon{font-size:2.2rem;margin-bottom:10px}
+    .tpl-name{font-size:1rem;font-weight:700;color:var(--verde);margin-bottom:4px}
+    .tpl-desc{font-size:.8rem;color:#777;line-height:1.4}
+    .tpl-badge{position:absolute;top:12px;right:12px;background:var(--verde-fondo);color:var(--verde);font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:20px}
+
+    /* ══ EDITOR PANEL ══ */
+    .editor-wrap{background:#fff;border-radius:14px;box-shadow:var(--sombra);overflow:hidden}
+    .editor-toolbar{background:#f9f9f9;border-bottom:1px solid var(--borde);padding:8px 14px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+    .tb-group{display:flex;gap:2px;padding-right:8px;margin-right:4px;border-right:1px solid #ddd}
+    .tb-group:last-child{border-right:none;margin-right:0}
+    .tb-btn{padding:5px 9px;background:none;border:1px solid transparent;border-radius:6px;font-size:.85rem;cursor:pointer;color:#444;transition:all .12s;line-height:1}
+    .tb-btn:hover{background:#e8f5e9;border-color:var(--borde);color:var(--verde)}
+    .tb-btn.active{background:var(--verde);color:#fff;border-color:var(--verde)}
+    .tb-select{padding:4px 8px;border:1px solid var(--borde);border-radius:6px;font-size:.82rem;background:#fff;color:#444;cursor:pointer}
+    .tb-spacer{flex:1}
+    .tb-vars-btn{padding:5px 12px;background:var(--amarillo);border:none;border-radius:6px;font-size:.78rem;font-weight:700;cursor:pointer;color:#1b2a1b}
+    .tb-vars-btn:hover{background:#e6980f}
+
+    .editor-body{display:grid;grid-template-columns:1fr 260px}
+    @media(max-width:900px){.editor-body{grid-template-columns:1fr}}
+
+    .editor-area{padding:0}
+    #editor{min-height:500px;padding:32px 40px;outline:none;font-size:.95rem;line-height:1.7;color:#222;font-family:'Segoe UI',Arial,sans-serif}
+    #editor h1{font-size:1.4rem;font-weight:800;text-align:center;color:var(--verde);margin-bottom:6px}
+    #editor h2{font-size:1.1rem;font-weight:700;color:var(--verde);margin:18px 0 6px;border-bottom:1px solid var(--borde);padding-bottom:4px}
+    #editor h3{font-size:.95rem;font-weight:700;color:#555;margin:12px 0 4px}
+    #editor table{width:100%;border-collapse:collapse;margin:10px 0}
+    #editor table td,#editor table th{border:1px solid #ccc;padding:7px 10px;font-size:.88rem}
+    #editor table th{background:#f5f5f5;font-weight:600}
+    #editor .var-tag{background:#fff3cd;border:1px solid #ffc107;border-radius:4px;padding:1px 5px;font-family:monospace;font-size:.82rem;color:#856404;cursor:default}
+    #editor .field-row{display:flex;gap:0;margin-bottom:6px;border-bottom:1px solid #eee;padding-bottom:6px}
+    #editor .field-label{font-weight:600;min-width:180px;color:#555;font-size:.88rem}
+    #editor .field-val{font-size:.88rem;flex:1}
+    #editor .firma-box{border:1px solid #ccc;border-radius:8px;padding:20px;text-align:center;margin:10px 0;min-height:80px}
+    #editor .firma-line{border-top:1px solid #333;width:200px;margin:40px auto 6px;font-size:.78rem;text-align:center;color:#555}
+    .editor-panel{border-left:1px solid var(--borde);padding:16px}
+    .panel-title{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#888;margin-bottom:12px}
+    .var-list{display:flex;flex-direction:column;gap:4px}
+    .var-chip{padding:5px 10px;background:var(--verde-fondo);border:1px solid var(--borde);border-radius:7px;font-size:.75rem;font-family:monospace;color:var(--verde);cursor:pointer;transition:background .12s;user-select:none}
+    .var-chip:hover{background:#c8e6c9}
+    .var-section{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#aaa;margin:10px 0 4px}
+
+    /* ══ GENERACIÓN ══ */
+    .gen-panel{background:#fff;border-radius:14px;box-shadow:var(--sombra);padding:22px;margin-top:20px}
+    .gen-title{font-size:.95rem;font-weight:700;color:var(--verde);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+    .gen-grid{display:grid;grid-template-columns:1fr 1fr auto auto;gap:12px;align-items:end}
+    @media(max-width:700px){.gen-grid{grid-template-columns:1fr}}
+    .gen-field{display:flex;flex-direction:column;gap:5px}
+    .gen-label{font-size:.8rem;font-weight:600;color:#555}
+    .gen-select{padding:9px 12px;border:1.5px solid var(--borde);border-radius:8px;font-size:.88rem;background:var(--gris);width:100%}
+    .gen-select:focus{outline:none;border-color:var(--verde-claro)}
+    .btn-gen{padding:10px 20px;border:none;border-radius:8px;font-size:.88rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;transition:background .2s}
+    .btn-preview{background:var(--verde-fondo);color:var(--verde);border:1px solid var(--borde)}
+    .btn-preview:hover{background:#c8e6c9}
+    .btn-download{background:var(--verde);color:#fff}
+    .btn-download:hover{background:var(--verde-claro)}
+    .btn-mass{background:var(--amarillo);color:#1b2a1b}
+    .btn-mass:hover{background:#e6980f}
+
+    /* ══ PREVIEW MODAL ══ */
+    .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:400;align-items:center;justify-content:center;padding:20px}
+    .overlay.open{display:flex}
+    .preview-modal{background:#fff;border-radius:14px;max-width:780px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);animation:slideUp .2s ease}
+    @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    .preview-hdr{background:var(--verde);color:#fff;padding:16px 22px;border-radius:14px 14px 0 0;display:flex;align-items:center;gap:10px}
+    .preview-hdr h2{flex:1;font-size:1rem}
+    .preview-close{background:rgba(255,255,255,.2);border:none;color:#fff;font-size:1.1rem;cursor:pointer;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+    .preview-body{padding:32px 40px}
+    .preview-ftr{padding:14px 22px;border-top:1px solid var(--borde);display:flex;justify-content:flex-end;gap:10px}
+    .btn-print{padding:9px 22px;background:var(--verde);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer}
+    .btn-close-modal{padding:9px 22px;background:#e0e0e0;border:none;border-radius:8px;font-weight:600;cursor:pointer}
+
+    /* ══ PRINT STYLES ══ */
+    @media print{
+      .top-bar,.sidebar,.gen-panel,.editor-toolbar,.editor-panel,.tpl-grid,.page-title,.page-sub{display:none!important}
+      .main{margin:0!important;padding:0!important}
+      .editor-wrap{box-shadow:none!important;border:none!important}
+      .editor-body{grid-template-columns:1fr!important}
+      #editor{padding:20px!important}
+    }
+
+    /* ══ RESPONSIVE ══ */
+    @media(max-width:860px){
+      .sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}
+      .main{margin-left:0}.hamburger{display:block}
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="top-bar">
+  <button class="hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+  <div class="logo">⚜️</div>
+  <div><div style="font-size:1.05rem;font-weight:700">Panel de Administración Scout</div><div style="font-size:.72rem;opacity:.75">Gestión de integrantes y documentos</div></div>
+  <div class="spacer"></div>
+  <a href="index.html" class="new-btn">+ Nuevo Registro</a>
+</div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-label">Principal</div>
+    <a class="nav-item" href="admin.html"><span class="icon">📊</span> Dashboard</a>
+    <a class="nav-item" href="admin.html#registros"><span class="icon">🧒</span> Registros</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Finanzas</div>
+    <a class="nav-item" href="admin.html#pagos-registro"><span class="icon">💰</span> Pagos <span style="margin-left:auto;font-size:.7rem">›</span></a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Documentos</div>
+    <div class="nav-item open active" id="nav-docs" onclick="toggleSubmenu('sm-docs','nav-docs')">
+      <span class="icon">📄</span> Documentos <span class="arrow open">›</span>
+    </div>
+    <div class="submenu open" id="sm-docs">
+      <div class="sub-item active" id="sub-ficha-reg" onclick="loadTemplate('ficha-registro')"><span class="sub-dot"></span> Ficha de Registro</div>
+      <div class="sub-item" id="sub-ficha-med" onclick="loadTemplate('ficha-medica')"><span class="sub-dot"></span> Ficha Médica y Emocional</div>
+      <div class="sub-item" id="sub-autorizacion" onclick="loadTemplate('autorizacion')"><span class="sub-dot"></span> Autorización</div>
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="page-title">📄 Documentos</div>
+  <div class="page-sub">Crea y genera documentos personalizados con los datos de los scouts</div>
+
+  <!-- PLANTILLAS -->
+  <div class="tpl-grid">
+    <div class="tpl-card selected" id="card-ficha-registro" onclick="loadTemplate('ficha-registro')">
+      <div class="tpl-badge">Registro</div>
+      <div class="tpl-icon">📋</div>
+      <div class="tpl-name">Ficha de Registro</div>
+      <div class="tpl-desc">Datos completos del scout, apoderado y contacto de emergencia</div>
+    </div>
+    <div class="tpl-card" id="card-ficha-medica" onclick="loadTemplate('ficha-medica')">
+      <div class="tpl-badge">Salud</div>
+      <div class="tpl-icon">🏥</div>
+      <div class="tpl-name">Ficha Médica y Emocional</div>
+      <div class="tpl-desc">Información de salud, alergias, medicamentos y estado emocional</div>
+    </div>
+    <div class="tpl-card" id="card-autorizacion" onclick="loadTemplate('autorizacion')">
+      <div class="tpl-badge">Legal</div>
+      <div class="tpl-icon">✍️</div>
+      <div class="tpl-name">Autorización</div>
+      <div class="tpl-desc">Autorización del apoderado para actividades y salidas</div>
+    </div>
+  </div>
+
+  <!-- EDITOR -->
+  <div class="editor-wrap">
+    <div class="editor-toolbar">
+      <div class="tb-group">
+        <select class="tb-select" onchange="execCmd('formatBlock',this.value);this.selectedIndex=0">
+          <option value="">Párrafo</option>
+          <option value="h1">Título 1</option>
+          <option value="h2">Título 2</option>
+          <option value="h3">Título 3</option>
+          <option value="p">Normal</option>
+        </select>
+      </div>
+      <div class="tb-group">
+        <button class="tb-btn" onclick="execCmd('bold')" title="Negrita"><b>B</b></button>
+        <button class="tb-btn" onclick="execCmd('italic')" title="Cursiva"><i>I</i></button>
+        <button class="tb-btn" onclick="execCmd('underline')" title="Subrayado"><u>U</u></button>
+        <button class="tb-btn" onclick="execCmd('strikeThrough')" title="Tachado"><s>S</s></button>
+      </div>
+      <div class="tb-group">
+        <button class="tb-btn" onclick="execCmd('justifyLeft')" title="Izquierda">⬅</button>
+        <button class="tb-btn" onclick="execCmd('justifyCenter')" title="Centro">↔</button>
+        <button class="tb-btn" onclick="execCmd('justifyRight')" title="Derecha">➡</button>
+      </div>
+      <div class="tb-group">
+        <button class="tb-btn" onclick="execCmd('insertUnorderedList')" title="Lista">• —</button>
+        <button class="tb-btn" onclick="execCmd('insertOrderedList')" title="Lista numerada">1.</button>
+        <button class="tb-btn" onclick="execCmd('outdent')" title="Sangría izq">«</button>
+        <button class="tb-btn" onclick="execCmd('indent')" title="Sangría der">»</button>
+      </div>
+      <div class="tb-group">
+        <button class="tb-btn" title="Deshacer" onclick="document.execCommand('undo')">↩</button>
+        <button class="tb-btn" title="Rehacer" onclick="document.execCommand('redo')">↪</button>
+      </div>
+      <div class="tb-spacer"></div>
+      <button class="tb-vars-btn" onclick="toggleVars()">📌 Variables</button>
+      <button class="tb-btn" style="margin-left:6px;background:#e3f2fd;color:#1565c0;border-color:#bbdefb;font-weight:600" onclick="saveTpl()">💾 Guardar plantilla</button>
+      <button class="tb-btn" style="margin-left:4px;background:#ffebee;color:#c62828;border-color:#ffcdd2;font-weight:600" onclick="resetTpl()">↺ Restaurar</button>
+    </div>
+
+    <div class="editor-body">
+      <div class="editor-area">
+        <div id="editor" contenteditable="true" spellcheck="false"></div>
+      </div>
+      <div class="editor-panel" id="varsPanel" style="display:none">
+        <div class="panel-title">📌 Variables disponibles</div>
+        <div class="panel-title" style="color:#888;font-size:.7rem;font-weight:400;margin-top:-6px;margin-bottom:10px">Clic para insertar en el documento</div>
+        <div class="var-section">Scout</div>
+        <div class="var-list" id="varListScout"></div>
+        <div class="var-section">Apoderado</div>
+        <div class="var-list" id="varListAp"></div>
+        <div class="var-section">Emergencia</div>
+        <div class="var-list" id="varListEm"></div>
+        <div class="var-section">Sistema</div>
+        <div class="var-list" id="varListSys"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GENERACIÓN -->
+  <div class="gen-panel">
+    <div class="gen-title">🖨️ Generar Documento</div>
+    <div class="gen-grid">
+      <div class="gen-field">
+        <div class="gen-label">Scout</div>
+        <select class="gen-select" id="genScout">
+          <option value="__all__">— Todos los scouts (generación masiva) —</option>
+        </select>
+      </div>
+      <div class="gen-field">
+        <div class="gen-label">Filtrar por Unidad</div>
+        <select class="gen-select" id="genUnidad" onchange="filterScoutsByUnit()">
+          <option value="">Todas las unidades</option>
+          <option>Manada</option><option>Banda</option><option>Scout</option>
+          <option>Guías</option><option>Avanzada</option><option>Clan</option>
+        </select>
+      </div>
+      <button class="btn-gen btn-preview" onclick="previewDoc()">👁 Vista previa</button>
+      <button class="btn-gen btn-download" onclick="downloadDoc()">⬇️ Descargar</button>
+    </div>
+    <div style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--borde);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span style="font-size:.82rem;color:#777">Generación masiva:</span>
+      <button class="btn-gen btn-mass" onclick="downloadAll()">📦 Descargar todos (ZIP)</button>
+      <button class="btn-gen btn-preview" onclick="printAll()">🖨️ Imprimir todos</button>
+    </div>
+  </div>
+
+</main>
+
+<!-- PREVIEW MODAL -->
+<div class="overlay" id="previewOverlay" onclick="closePreview(event)">
+  <div class="preview-modal">
+    <div class="preview-hdr">
+      <h2 id="previewTitle">Vista previa del documento</h2>
+      <button class="preview-close" onclick="document.getElementById('previewOverlay').classList.remove('open')">✕</button>
+    </div>
+    <div class="preview-body" id="previewBody"></div>
+    <div class="preview-ftr">
+      <button class="btn-close-modal" onclick="document.getElementById('previewOverlay').classList.remove('open')">Cerrar</button>
+      <button class="btn-print" onclick="printPreview()">🖨️ Imprimir</button>
+      <button class="btn-print" style="background:var(--amarillo);color:#1b2a1b" onclick="downloadFromPreview()">⬇️ Descargar HTML</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══ SUPABASE + DATA ══════════════════════════════════════
+let allScouts = [];
+let currentTpl = 'ficha-registro';
+let varsVisible = false;
+
+const VARS_SCOUT = [
+  ['{{nombres}}','Nombres'],['{{apPaterno}}','Apellido Paterno'],
+  ['{{apMaterno}}','Apellido Materno'],['{{nombreCompleto}}','Nombre Completo'],
+  ['{{rut}}','RUT'],['{{edad}}','Edad'],['{{fechaNac}}','Fecha de Nacimiento'],
+  ['{{unidad}}','Unidad Scout'],['{{colegio}}','Colegio'],
+  ['{{telefono}}','Teléfono'],['{{correo}}','Correo'],
+  ['{{direccion}}','Dirección'],['{{religion}}','Religión'],
+  ['{{folio}}','Folio']
+];
+const VARS_AP = [
+  ['{{apNombre}}','Nombre Apoderado'],['{{apRut}}','RUT Apoderado'],
+  ['{{apParentesco}}','Parentesco'],['{{apCorreo}}','Correo Apoderado'],
+  ['{{apTelefono}}','Teléfono Apoderado']
+];
+const VARS_EM = [
+  ['{{emNombre}}','Nombre Emergencia'],
+  ['{{emParentesco}}','Parentesco Emergencia'],
+  ['{{emTelefono}}','Teléfono Emergencia']
+];
+const VARS_SYS = [
+  ['{{fecha}}','Fecha actual'],['{{año}}','Año actual'],
+  ['{{ciudad}}','Ciudad (Santiago)']
+];
+
+// ══ TEMPLATES ════════════════════════════════════════════
+const DEFAULT_TEMPLATES = {
+  'ficha-registro': `<h1>⚜️ FICHA DE REGISTRO SCOUT</h1>
+<p style="text-align:center;color:#777;font-size:.85rem;margin-bottom:20px">Folio: <strong>{{folio}}</strong> &nbsp;·&nbsp; Fecha: <strong>{{fecha}}</strong></p>
+
+<h2>👤 Datos del Scout</h2>
+<table><tr><th style="width:40%">Campo</th><th>Información</th></tr>
+<tr><td><strong>Nombre Completo</strong></td><td>{{nombreCompleto}}</td></tr>
+<tr><td><strong>RUT</strong></td><td>{{rut}}</td></tr>
+<tr><td><strong>Fecha de Nacimiento</strong></td><td>{{fechaNac}}</td></tr>
+<tr><td><strong>Edad</strong></td><td>{{edad}}</td></tr>
+<tr><td><strong>Unidad Scout</strong></td><td>{{unidad}}</td></tr>
+<tr><td><strong>Colegio</strong></td><td>{{colegio}}</td></tr>
+<tr><td><strong>Dirección</strong></td><td>{{direccion}}</td></tr>
+<tr><td><strong>Religión</strong></td><td>{{religion}}</td></tr>
+<tr><td><strong>Teléfono</strong></td><td>{{telefono}}</td></tr>
+<tr><td><strong>Correo</strong></td><td>{{correo}}</td></tr>
+</table>
+
+<h2>👨‍👩‍👦 Datos del Apoderado</h2>
+<table><tr><th style="width:40%">Campo</th><th>Información</th></tr>
+<tr><td><strong>Nombre</strong></td><td>{{apNombre}}</td></tr>
+<tr><td><strong>RUT</strong></td><td>{{apRut}}</td></tr>
+<tr><td><strong>Parentesco</strong></td><td>{{apParentesco}}</td></tr>
+<tr><td><strong>Teléfono</strong></td><td>{{apTelefono}}</td></tr>
+<tr><td><strong>Correo</strong></td><td>{{apCorreo}}</td></tr>
+</table>
+
+<h2>🚨 Contacto de Emergencia</h2>
+<table><tr><th style="width:40%">Campo</th><th>Información</th></tr>
+<tr><td><strong>Nombre</strong></td><td>{{emNombre}}</td></tr>
+<tr><td><strong>Parentesco</strong></td><td>{{emParentesco}}</td></tr>
+<tr><td><strong>Teléfono</strong></td><td>{{emTelefono}}</td></tr>
+</table>
+
+<p style="margin-top:30px;font-size:.75rem;color:#aaa;text-align:center">Documento generado el {{fecha}} · Portal Scout</p>`,
+
+  'ficha-medica': `<h1>⚜️ FICHA MÉDICA Y EMOCIONAL</h1>
+<p style="text-align:center;color:#777;font-size:.85rem;margin-bottom:20px">Scout: <strong>{{nombreCompleto}}</strong> &nbsp;·&nbsp; Unidad: <strong>{{unidad}}</strong> &nbsp;·&nbsp; Folio: <strong>{{folio}}</strong></p>
+
+<h2>👤 Identificación</h2>
+<table><tr><th style="width:40%">Campo</th><th>Información</th></tr>
+<tr><td><strong>Nombre Completo</strong></td><td>{{nombreCompleto}}</td></tr>
+<tr><td><strong>RUT</strong></td><td>{{rut}}</td></tr>
+<tr><td><strong>Fecha de Nacimiento</strong></td><td>{{fechaNac}}</td></tr>
+<tr><td><strong>Edad</strong></td><td>{{edad}}</td></tr>
+<tr><td><strong>Grupo Sanguíneo</strong></td><td>_______________________</td></tr>
+<tr><td><strong>Previsión de Salud</strong></td><td>_______________________</td></tr>
+<tr><td><strong>N° Afiliado / Carnet</strong></td><td>_______________________</td></tr>
+</table>
+
+<h2>💊 Información Médica</h2>
+<table><tr><th style="width:40%">Campo</th><th>Información</th></tr>
+<tr><td><strong>Alergias</strong></td><td>_______________________</td></tr>
+<tr><td><strong>Medicamentos que usa</strong></td><td>_______________________</td></tr>
+<tr><td><strong>Enfermedades crónicas</strong></td><td>_______________________</td></tr>
+<tr><td><strong>Operaciones / Cirugías</strong></td><td>_______________________</td></tr>
+<tr><td><strong>Restricciones físicas</strong></td><td>_______________________</td></tr>
+<tr><td><strong>¿Requiere cuidados especiales?</strong></td><td>☐ Sí &nbsp;&nbsp; ☐ No</td></tr>
+<tr><td><strong>Vacunas al día</strong></td><td>☐ Sí &nbsp;&nbsp; ☐ No</td></tr>
+</table>
+
+<h2>🧠 Estado Emocional y Conductual</h2>
+<table><tr><th style="width:40%">Campo</th><th>Información</th></tr>
+<tr><td><strong>¿Está en terapia psicológica?</strong></td><td>☐ Sí &nbsp;&nbsp; ☐ No</td></tr>
+<tr><td><strong>Diagnóstico (si aplica)</strong></td><td>_______________________</td></tr>
+<tr><td><strong>Conductas a considerar</strong></td><td>_______________________</td></tr>
+<tr><td><strong>Manejo de frustración</strong></td><td>☐ Bueno &nbsp; ☐ Regular &nbsp; ☐ Difícil</td></tr>
+<tr><td><strong>Trabaja bien en equipo</strong></td><td>☐ Sí &nbsp;&nbsp; ☐ No &nbsp;&nbsp; ☐ A veces</td></tr>
+<tr><td><strong>Observaciones adicionales</strong></td><td>&nbsp;</td></tr>
+</table>
+
+<h2>🚨 Contacto de Emergencia</h2>
+<table><tr><th style="width:40%">Campo</th><th>Información</th></tr>
+<tr><td><strong>Nombre</strong></td><td>{{emNombre}}</td></tr>
+<tr><td><strong>Parentesco</strong></td><td>{{emParentesco}}</td></tr>
+<tr><td><strong>Teléfono</strong></td><td>{{emTelefono}}</td></tr>
+<tr><td><strong>Apoderado</strong></td><td>{{apNombre}} ({{apParentesco}}) · {{apTelefono}}</td></tr>
+</table>
+
+<br>
+<div class="firma-box">
+  <p style="font-size:.85rem;color:#555">Declaro que la información proporcionada es verídica y autorizo al grupo scout a actuar según sea necesario en caso de emergencia.</p>
+  <div class="firma-line">Firma Apoderado</div>
+  <p style="font-size:.78rem;color:#888">{{apNombre}} · RUT {{apRut}}</p>
+</div>
+<p style="margin-top:20px;font-size:.75rem;color:#aaa;text-align:center">Documento generado el {{fecha}} · Portal Scout</p>`,
+
+  'autorizacion': `<h1>⚜️ AUTORIZACIÓN DE PARTICIPACIÓN</h1>
+<p style="text-align:center;color:#777;font-size:.85rem;margin-bottom:24px">Año Escolar <strong>{{año}}</strong> &nbsp;·&nbsp; Grupo Scout</p>
+
+<p style="line-height:1.9;margin-bottom:16px">
+Yo, <strong>{{apNombre}}</strong>, RUT <strong>{{apRut}}</strong>, en mi calidad de <strong>{{apParentesco}}</strong>
+del scout <strong>{{nombreCompleto}}</strong>, RUT <strong>{{rut}}</strong>, perteneciente a la unidad
+<strong>{{unidad}}</strong>, por medio del presente documento:
+</p>
+
+<h2>✅ Autorizo expresamente a:</h2>
+<p style="line-height:1.9;margin-bottom:12px">
+Mi hijo/a a participar en todas las actividades programadas por el Grupo Scout durante el año <strong>{{año}}</strong>,
+incluyendo campamentos, excursiones, salidas educativas y actividades de formación scout.
+</p>
+
+<h2>📋 Datos del Scout</h2>
+<table><tr><th style="width:40%">Campo</th><th>Información</th></tr>
+<tr><td><strong>Nombre completo</strong></td><td>{{nombreCompleto}}</td></tr>
+<tr><td><strong>RUT</strong></td><td>{{rut}}</td></tr>
+<tr><td><strong>Edad</strong></td><td>{{edad}}</td></tr>
+<tr><td><strong>Unidad</strong></td><td>{{unidad}}</td></tr>
+<tr><td><strong>Colegio</strong></td><td>{{colegio}}</td></tr>
+</table>
+
+<h2>📋 Condiciones y compromisos</h2>
+<p style="line-height:1.9;margin-bottom:8px">
+☐ &nbsp; Acepto que mi hijo/a cumpla con las normas de convivencia y disciplina del grupo.<br>
+☐ &nbsp; Me comprometo a informar oportunamente cualquier condición médica relevante.<br>
+☐ &nbsp; Autorizo el uso de fotografías con fines educativos y de difusión scout.<br>
+☐ &nbsp; Acepto los términos de participación y responsabilidades compartidas.<br>
+☐ &nbsp; Me comprometo a cancelar puntualmente las cuotas y aportes acordados.
+</p>
+
+<h2>🚨 En caso de emergencia</h2>
+<p style="line-height:1.9">
+Contactar a: <strong>{{emNombre}}</strong> ({{emParentesco}}) al teléfono <strong>{{emTelefono}}</strong>,
+o al apoderado <strong>{{apNombre}}</strong> al teléfono <strong>{{apTelefono}}</strong>.
+</p>
+
+<br>
+<table style="margin-top:20px"><tr>
+  <td style="border:none;width:50%;padding:0 20px 0 0;vertical-align:bottom">
+    <div style="border-top:1px solid #333;padding-top:8px;text-align:center;font-size:.82rem">
+      <strong>{{apNombre}}</strong><br>RUT {{apRut}}<br>Apoderado/Tutor
+    </div>
+  </td>
+  <td style="border:none;width:50%;padding:0 0 0 20px;vertical-align:bottom">
+    <div style="border-top:1px solid #333;padding-top:8px;text-align:center;font-size:.82rem">
+      _______________________<br>Jefe/a de Grupo Scout<br>{{fecha}}
+    </div>
+  </td>
+</tr></table>
+<p style="margin-top:24px;font-size:.75rem;color:#aaa;text-align:center">Documento generado el {{fecha}} · Portal Scout · {{ciudad}}</p>`
+};
+
+// ══ INIT ══════════════════════════════════════════════════
+async function init() {
+  buildVarList();
+  await loadScouts();
+  loadTemplate('ficha-registro');
+}
+
+async function loadScouts() {
+  const { data, error } = await _sb.from('scouts').select('*').order('ap_paterno');
+  if (error) { console.error(error); return; }
+  allScouts = (data||[]).map(r => ({
+    folio: r.folio,
+    scout: {
+      rut: r.rut, nombres: r.nombres, apPaterno: r.ap_paterno, apMaterno: r.ap_materno,
+      fechaNac: r.fecha_nac, edad: r.edad, telefono: r.telefono, correo: r.correo,
+      colegio: r.colegio, unidad: r.unidad || '—', direccion: r.direccion, religion: r.religion
+    },
+    apoderado: { nombre: r.ap_nombre, rut: r.ap_rut, parentesco: r.ap_parentesco, correo: r.ap_correo, telefono: r.ap_telefono },
+    emergencia: { nombre: r.em_nombre, parentesco: r.em_parentesco, telefono: r.em_telefono }
+  }));
+  populateScoutSelect();
+}
+
+function populateScoutSelect(unidad = '') {
+  const sel = document.getElementById('genScout');
+  const filtered = unidad ? allScouts.filter(r => r.scout.unidad === unidad) : allScouts;
+  sel.innerHTML = '<option value="__all__">— Todos los scouts' + (unidad ? ' de ' + unidad : '') + ' —</option>';
+  filtered.forEach(r => {
+    const o = document.createElement('option');
+    o.value = r.folio;
+    o.textContent = `${r.scout.nombres} ${r.scout.apPaterno} (${r.scout.unidad || '—'}) · ${r.folio}`;
+    sel.appendChild(o);
+  });
+}
+
+function filterScoutsByUnit() {
+  const u = document.getElementById('genUnidad').value;
+  populateScoutSelect(u);
+}
+
+// ══ TEMPLATE LOADER ════════════════════════════════════════
+function loadTemplate(tplId) {
+  currentTpl = tplId;
+  // Highlight card
+  document.querySelectorAll('.tpl-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('card-' + tplId)?.classList.add('selected');
+  // Highlight sub-item
+  document.querySelectorAll('.sub-item').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.sub-dot').forEach(d => d.style.background = 'rgba(255,255,255,.4)');
+  const si = document.getElementById('sub-' + tplId);
+  if (si) { si.classList.add('active'); si.querySelector('.sub-dot').style.background = 'var(--amarillo)'; }
+  // Load content
+  const saved = localStorage.getItem('tpl_' + tplId);
+  document.getElementById('editor').innerHTML = saved || DEFAULT_TEMPLATES[tplId] || '';
+}
+
+function saveTpl() {
+  localStorage.setItem('tpl_' + currentTpl, document.getElementById('editor').innerHTML);
+  showToast('✅ Plantilla guardada');
+}
+function resetTpl() {
+  if (!confirm('¿Restaurar plantilla original?')) return;
+  localStorage.removeItem('tpl_' + currentTpl);
+  document.getElementById('editor').innerHTML = DEFAULT_TEMPLATES[currentTpl] || '';
+  showToast('↺ Plantilla restaurada');
+}
+
+// ══ EDITOR ════════════════════════════════════════════════
+function execCmd(cmd, val = null) {
+  document.getElementById('editor').focus();
+  document.execCommand(cmd, false, val);
+}
+
+function toggleVars() {
+  varsVisible = !varsVisible;
+  document.getElementById('varsPanel').style.display = varsVisible ? 'block' : 'none';
+}
+
+function buildVarList() {
+  const build = (containerId, vars) => {
+    const el = document.getElementById(containerId);
+    vars.forEach(([v, label]) => {
+      const chip = document.createElement('div');
+      chip.className = 'var-chip';
+      chip.textContent = v + ' — ' + label;
+      chip.onclick = () => insertVar(v);
+      el.appendChild(chip);
+    });
+  };
+  build('varListScout', VARS_SCOUT);
+  build('varListAp', VARS_AP);
+  build('varListEm', VARS_EM);
+  build('varListSys', VARS_SYS);
+}
+
+function insertVar(v) {
+  const editor = document.getElementById('editor');
+  editor.focus();
+  const sel = window.getSelection();
+  if (sel.rangeCount) {
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+    range.insertNode(document.createTextNode(v));
+    sel.collapseToEnd();
+  } else {
+    editor.innerHTML += v;
+  }
+}
+
+// ══ REPLACE VARS ══════════════════════════════════════════
+function replaceVars(html, record) {
+  const s = record.scout, a = record.apoderado, e = record.emergencia;
+  const today = new Date();
+  const fmtDate = d => { if (!d||d==='—') return '—'; const [y,m,day]=d.split('-'); return `${day}/${m}/${y}`; };
+  const map = {
+    '{{nombres}}':        s.nombres||'',
+    '{{apPaterno}}':      s.apPaterno||'',
+    '{{apMaterno}}':      s.apMaterno||'',
+    '{{nombreCompleto}}': `${s.nombres||''} ${s.apPaterno||''} ${s.apMaterno||''}`.trim(),
+    '{{rut}}':            s.rut||'',
+    '{{edad}}':           s.edad||'',
+    '{{fechaNac}}':       fmtDate(s.fechaNac),
+    '{{unidad}}':         s.unidad||'—',
+    '{{colegio}}':        s.colegio||'',
+    '{{telefono}}':       s.telefono||'',
+    '{{correo}}':         s.correo||'',
+    '{{direccion}}':      s.direccion||'',
+    '{{religion}}':       s.religion||'',
+    '{{folio}}':          record.folio||'',
+    '{{apNombre}}':       a.nombre||'',
+    '{{apRut}}':          a.rut||'',
+    '{{apParentesco}}':   a.parentesco||'',
+    '{{apCorreo}}':       a.correo||'',
+    '{{apTelefono}}':     a.telefono||'',
+    '{{emNombre}}':       e.nombre||'',
+    '{{emParentesco}}':   e.parentesco||'',
+    '{{emTelefono}}':     e.telefono||'',
+    '{{fecha}}':          today.toLocaleDateString('es-CL',{day:'2-digit',month:'long',year:'numeric'}),
+    '{{año}}':            String(today.getFullYear()),
+    '{{ciudad}}':         'Santiago, Chile'
+  };
+  let result = html;
+  for (const [k,v] of Object.entries(map)) result = result.replaceAll(k, v||'—');
+  return result;
+}
+
+function getDocHtml(record) {
+  const tplHtml = document.getElementById('editor').innerHTML;
+  const body = replaceVars(tplHtml, record);
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>${record.scout.nombres} ${record.scout.apPaterno} — ${currentTpl}</title>
+<style>
+  body{font-family:'Segoe UI',Arial,sans-serif;max-width:760px;margin:40px auto;padding:20px;color:#222;line-height:1.7}
+  h1{font-size:1.4rem;font-weight:800;text-align:center;color:#2e7d32;margin-bottom:6px}
+  h2{font-size:1.05rem;font-weight:700;color:#2e7d32;margin:20px 0 8px;border-bottom:1px solid #c8e6c9;padding-bottom:4px}
+  h3{font-size:.95rem;font-weight:700;color:#555;margin:12px 0 4px}
+  table{width:100%;border-collapse:collapse;margin:8px 0;font-size:.88rem}
+  td,th{border:1px solid #ccc;padding:7px 10px}
+  th{background:#f5f5f5;font-weight:600}
+  .firma-box{border:1px solid #ccc;border-radius:8px;padding:20px;text-align:center;margin:10px 0}
+  .firma-line{border-top:1px solid #333;width:200px;margin:40px auto 6px;font-size:.78rem;text-align:center}
+  @media print{body{margin:0;padding:20px}}
+</style></head><body>${body}</body></html>`;
+}
+
+// ══ PREVIEW ════════════════════════════════════════════════
+function previewDoc() {
+  const folio = document.getElementById('genScout').value;
+  let record;
+  if (folio === '__all__') {
+    if (!allScouts.length) { alert('No hay scouts registrados.'); return; }
+    record = allScouts[0];
+  } else {
+    record = allScouts.find(r => r.folio === folio);
+  }
+  if (!record) { alert('Scout no encontrado.'); return; }
+  const tplHtml = document.getElementById('editor').innerHTML;
+  document.getElementById('previewBody').innerHTML = replaceVars(tplHtml, record);
+  document.getElementById('previewTitle').textContent =
+    `${record.scout.nombres} ${record.scout.apPaterno} — ${tplNames[currentTpl]||currentTpl}`;
+  document.getElementById('previewOverlay').classList.add('open');
+}
+
+const tplNames = {'ficha-registro':'Ficha de Registro','ficha-medica':'Ficha Médica y Emocional','autorizacion':'Autorización'};
+
+function closePreview(e) {
+  if (e.target === document.getElementById('previewOverlay'))
+    document.getElementById('previewOverlay').classList.remove('open');
+}
+
+function printPreview() {
+  const folio = document.getElementById('genScout').value;
+  const record = folio==='__all__' ? allScouts[0] : allScouts.find(r=>r.folio===folio);
+  if (!record) return;
+  const w = window.open('','_blank','width=900,height=700');
+  w.document.write(getDocHtml(record));
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 600);
+}
+
+function downloadFromPreview() {
+  const folio = document.getElementById('genScout').value;
+  const record = folio==='__all__' ? allScouts[0] : allScouts.find(r=>r.folio===folio);
+  if (!record) return;
+  dlHtml(getDocHtml(record), `${record.scout.apPaterno}_${record.scout.nombres}_${currentTpl}.html`);
+  document.getElementById('previewOverlay').classList.remove('open');
+}
+
+// ══ DOWNLOAD INDIVIDUAL ═══════════════════════════════════
+function downloadDoc() {
+  const folio = document.getElementById('genScout').value;
+  if (folio === '__all__') { downloadAll(); return; }
+  const record = allScouts.find(r => r.folio === folio);
+  if (!record) { alert('Selecciona un scout.'); return; }
+  dlHtml(getDocHtml(record), `${record.scout.apPaterno}_${record.scout.nombres}_${currentTpl}.html`);
+  showToast('⬇️ Documento descargado');
+}
+
+// ══ DOWNLOAD ALL (ZIP) ════════════════════════════════════
+async function downloadAll() {
+  const u = document.getElementById('genUnidad').value;
+  const scouts = u ? allScouts.filter(r=>r.scout.unidad===u) : allScouts;
+  if (!scouts.length) { alert('No hay scouts para generar documentos.'); return; }
+  showToast('⏳ Generando ZIP con ' + scouts.length + ' documentos...');
+  const zip = new JSZip();
+  const folder = zip.folder(tplNames[currentTpl] || currentTpl);
+  scouts.forEach(record => {
+    const filename = `${record.scout.apPaterno}_${record.scout.nombres}_${record.folio}.html`;
+    folder.file(filename, getDocHtml(record));
+  });
+  const blob = await zip.generateAsync({ type:'blob' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${currentTpl}_${new Date().toISOString().slice(0,10)}.zip`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✅ ZIP descargado con ' + scouts.length + ' documentos');
+}
+
+// ══ PRINT ALL ════════════════════════════════════════════
+function printAll() {
+  const u = document.getElementById('genUnidad').value;
+  const scouts = u ? allScouts.filter(r=>r.scout.unidad===u) : allScouts;
+  if (!scouts.length) { alert('No hay scouts para imprimir.'); return; }
+  if (!confirm(`¿Imprimir ${scouts.length} documentos?`)) return;
+  const combined = scouts.map(r => replaceVars(document.getElementById('editor').innerHTML, r))
+    .join('<div style="page-break-after:always;margin:0;padding:0"></div>');
+  const w = window.open('','_blank','width=900,height=700');
+  w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<style>body{font-family:'Segoe UI',Arial,sans-serif;max-width:760px;margin:30px auto;padding:20px;color:#222;line-height:1.7}
+h1{font-size:1.4rem;font-weight:800;text-align:center;color:#2e7d32;margin-bottom:6px}
+h2{font-size:1.05rem;font-weight:700;color:#2e7d32;margin:20px 0 8px;border-bottom:1px solid #c8e6c9;padding-bottom:4px}
+table{width:100%;border-collapse:collapse;margin:8px 0;font-size:.88rem}td,th{border:1px solid #ccc;padding:7px 10px}
+th{background:#f5f5f5;font-weight:600}@media print{body{margin:0;padding:20px}}</style>
+</head><body>${combined}</body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 800);
+}
+
+// ══ HELPERS ═══════════════════════════════════════════════
+function dlHtml(html, filename) {
+  const blob = new Blob([html],{type:'text/html;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+let toastTimer;
+function showToast(msg) {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#1b5e20;color:#fff;padding:11px 20px;border-radius:10px;font-size:.88rem;font-weight:600;z-index:999;box-shadow:0 4px 16px rgba(0,0,0,.2);transition:opacity .3s';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg; t.style.opacity = '1';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.style.opacity = '0'; }, 3000);
+}
+
+function toggleSubmenu(id) {
+  document.getElementById(id)?.classList.toggle('open');
+}
+
+// ══ START ══════════════════════════════════════════════════
+// Abrir plantilla según parámetro URL
+const urlTpl = new URLSearchParams(location.search).get('tpl');
+if (urlTpl && DEFAULT_TEMPLATES[urlTpl]) currentTpl = urlTpl;
+init();
+</script>
+</body>
+</html>

@@ -332,6 +332,25 @@ const _sb = supabase.createClient('__SUPABASE_URL__', '__SUPABASE_ANON_KEY__');
     </div>
   </div>
 
+  <div class="sidebar-section">
+    <div class="sidebar-label">Documentos</div>
+    <div class="nav-item" id="nav-docs-parent" onclick="toggleSubmenu('submenu-docs', 'nav-docs-parent')">
+      <span class="icon">📄</span> Documentos
+      <span class="arrow">›</span>
+    </div>
+    <div class="submenu" id="submenu-docs">
+      <a class="sub-item" href="documentos.html?tpl=ficha-registro">
+        <span class="sub-dot"></span> Ficha de Registro
+      </a>
+      <a class="sub-item" href="documentos.html?tpl=ficha-medica">
+        <span class="sub-dot"></span> Ficha Médica y Emocional
+      </a>
+      <a class="sub-item" href="documentos.html?tpl=autorizacion">
+        <span class="sub-dot"></span> Autorización
+      </a>
+    </div>
+  </div>
+
 </nav>
 
 <!-- ══ MAIN ════════════════════════════════════════════ -->

@@ -12,7 +12,7 @@ if (!SUPABASE_URL || !SUPABASE_ANON) {
 const dist = path.join(__dirname, 'dist');
 if (!fs.existsSync(dist)) fs.mkdirSync(dist);
 
-['index.html', 'admin.html'].forEach(file => {
+['index.html', 'admin.html', 'documentos.html'].forEach(file => {
   let content = fs.readFileSync(path.join(__dirname, file), 'utf8');
   content = content
     .replace(/__SUPABASE_URL__/g,      SUPABASE_URL)
