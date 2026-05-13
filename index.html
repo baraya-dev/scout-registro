@@ -270,6 +270,10 @@
     .resumen-row .label { font-weight: 600; min-width: 160px; color: #555; }
     .resumen-row .value { color: var(--texto); }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+const _sb = supabase.createClient('__SUPABASE_URL__', '__SUPABASE_ANON_KEY__');
+  </script>
 </head>
 <body>
 
@@ -778,36 +782,26 @@ function formatDate(d) {
 }
 
 // ── SUBMIT ────────────────────────────────────────────────
-function submitForm() {
+async function submitForm() {
   const folio = 'SCT-' + Date.now().toString().slice(-6);
-  document.getElementById('folioNum').textContent = 'FOLIO #' + folio;
 
   const record = {
     folio,
-    fechaRegistro: new Date().toISOString(),
-    scout: {
-      rut: v('rut'), nombres: v('nombres'),
-      apPaterno: v('apPaterno'), apMaterno: v('apMaterno'),
-      fechaNac: v('fechaNac'), edad: v('edad'),
-      telefono: v('telefono'), correo: v('correo'),
-      colegio: v('colegio'), unidad: v('unidad'),
-      direccion: v('direccion'), religion: v('religion')
-    },
-    apoderado: {
-      nombre: v('apNombre'), rut: v('apRut'),
-      parentesco: v('apParentesco'), correo: v('apCorreo'),
-      telefono: v('apTelefono')
-    },
-    emergencia: {
-      nombre: v('emNombre'), parentesco: v('emParentesco'),
-      telefono: v('emTelefono')
-    }
+    rut: v('rut'), nombres: v('nombres'),
+    ap_paterno: v('apPaterno'), ap_materno: v('apMaterno'),
+    fecha_nac: v('fechaNac'), edad: v('edad'),
+    telefono: v('telefono'), correo: v('correo'),
+    colegio: v('colegio'), unidad: v('unidad'),
+    direccion: v('direccion'), religion: v('religion'),
+    ap_nombre: v('apNombre'), ap_rut: v('apRut'),
+    ap_parentesco: v('apParentesco'), ap_correo: v('apCorreo'), ap_telefono: v('apTelefono'),
+    em_nombre: v('emNombre'), em_parentesco: v('emParentesco'), em_telefono: v('emTelefono')
   };
 
-  const registros = JSON.parse(localStorage.getItem('scout_registros') || '[]');
-  registros.unshift(record);
-  localStorage.setItem('scout_registros', JSON.stringify(registros));
+  const { error } = await _sb.from('scouts').insert(record);
+  if (error) { alert('Error al guardar: ' + error.message); return; }
 
+  document.getElementById('folioNum').textContent = 'FOLIO #' + folio;
   for (let i = 1; i <= 4; i++) {
     document.getElementById('step' + i).classList.remove('active');
     document.getElementById('pd' + i).classList.add('done');

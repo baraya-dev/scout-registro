@@ -286,6 +286,10 @@
     .table-overflow { overflow-x:auto; }
     @media (max-width:700px) { table { min-width:580px; } }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+const _sb = supabase.createClient('__SUPABASE_URL__', '__SUPABASE_ANON_KEY__');
+  </script>
 </head>
 <body>
 
@@ -542,28 +546,65 @@ let regPage = 1, pagPage = 1;
 const PER = 10;
 
 // ══ LOAD ═══════════════════════════════════════════════
-function loadData() {
-  allRecords  = JSON.parse(localStorage.getItem('scout_registros') || '[]');
-  pagos       = JSON.parse(localStorage.getItem('scout_pagos')     || '{}');
-  configPago  = JSON.parse(localStorage.getItem('scout_config')    || '{"montoBase":15000}');
-  syncPagosWithRecords();
+async function loadData() {
+  // Cargar scouts
+  const { data: scouts, error: e1 } = await _sb.from('scouts').select('*').order('fecha_registro', { ascending: false });
+  if (e1) { console.error(e1); return; }
+
+  // Mapear de formato DB a formato app
+  allRecords = (scouts || []).map(r => ({
+    folio: r.folio,
+    fechaRegistro: r.fecha_registro,
+    scout: {
+      rut: r.rut, nombres: r.nombres, apPaterno: r.ap_paterno, apMaterno: r.ap_materno,
+      fechaNac: r.fecha_nac, edad: r.edad, telefono: r.telefono, correo: r.correo,
+      colegio: r.colegio, unidad: r.unidad, direccion: r.direccion, religion: r.religion
+    },
+    apoderado: {
+      nombre: r.ap_nombre, rut: r.ap_rut, parentesco: r.ap_parentesco,
+      correo: r.ap_correo, telefono: r.ap_telefono
+    },
+    emergencia: { nombre: r.em_nombre, parentesco: r.em_parentesco, telefono: r.em_telefono }
+  }));
+
+  // Cargar pagos
+  const { data: pagoRows } = await _sb.from('pagos').select('*');
+  pagos = {};
+  (pagoRows || []).forEach(p => {
+    pagos[p.folio] = { monto: p.monto, pagado: p.pagado, fecha: p.fecha, metodo: p.metodo, ref: p.ref, estado: p.estado, obs: p.obs };
+  });
+
+  // Cargar config
+  const { data: cfg } = await _sb.from('config').select('*');
+  (cfg || []).forEach(c => {
+    if (c.key === 'monto_base') configPago.montoBase = parseFloat(c.value) || 15000;
+  });
+
+  await syncPagosWithRecords();
   populateFilters();
   renderDashboard();
   renderRegistros();
   renderPagos();
 }
 
-function savePagos() { localStorage.setItem('scout_pagos', JSON.stringify(pagos)); }
-function saveConfigLocal() { localStorage.setItem('scout_config', JSON.stringify(configPago)); }
+async function savePagos() {
+  // se guarda individualmente en guardarPago()
+}
 
 // asegura que todo registro tenga entrada en pagos
-function syncPagosWithRecords() {
-  allRecords.forEach(r => {
-    if (!pagos[r.folio]) {
+async function syncPagosWithRecords() {
+  const newRecords = allRecords.filter(r => !pagos[r.folio]);
+  if (newRecords.length > 0) {
+    const inserts = newRecords.map(r => ({
+      folio: r.folio,
+      monto: configPago.montoBase,
+      pagado: 0, fecha: '', metodo: '', ref: '', estado: 'pendiente', obs: ''
+    }));
+    await _sb.from('pagos').upsert(inserts, { onConflict: 'folio', ignoreDuplicates: true });
+    newRecords.forEach(r => {
       pagos[r.folio] = { monto: configPago.montoBase, pagado: 0, fecha: '', metodo: '', ref: '', estado: 'pendiente', obs: '' };
-    }
-  });
-  savePagos();
+    });
+  }
 }
 
 // ══ SIDEBAR & NAV ══════════════════════════════════════
@@ -738,12 +779,12 @@ function openRegModal(idx) {
   document.getElementById('ovReg').classList.add('open');
 }
 
-function delReg(folio) {
-  if (!confirm(`¿Eliminar el registro ${folio}?`)) return;
+async function delReg(folio) {
+  if (!confirm('¿Eliminar el registro ' + folio + '?')) return;
+  const { error } = await _sb.from('scouts').delete().eq('folio', folio);
+  if (error) { alert('Error: ' + error.message); return; }
   allRecords = allRecords.filter(r => r.folio !== folio);
   delete pagos[folio];
-  localStorage.setItem('scout_registros', JSON.stringify(allRecords));
-  savePagos();
   renderDashboard(); renderRegistros(); renderPagos();
 }
 
@@ -899,9 +940,10 @@ function updatePagoStatus() {
 }
 function syncEstadoManual() { /* manual override, no auto */ }
 
-function guardarPago() {
+async function guardarPago() {
   if (!currentPagoFolio) return;
-  pagos[currentPagoFolio] = {
+  const data = {
+    folio:  currentPagoFolio,
     monto:  parseFloat(document.getElementById('pagoMonto').value)  || 0,
     pagado: parseFloat(document.getElementById('pagoPagado').value) || 0,
     fecha:  document.getElementById('pagoFecha').value,
@@ -909,8 +951,11 @@ function guardarPago() {
     ref:    document.getElementById('pagoRef').value,
     estado: document.getElementById('pagoEstado').value,
     obs:    document.getElementById('pagoObs').value,
+    updated_at: new Date().toISOString()
   };
-  savePagos();
+  const { error } = await _sb.from('pagos').upsert(data, { onConflict: 'folio' });
+  if (error) { alert('Error al guardar pago: ' + error.message); return; }
+  pagos[currentPagoFolio] = data;
   closeOverlayDirect('ovPago');
   renderDashboard(); renderPagos();
 }
@@ -920,9 +965,9 @@ function openConfigPago() {
   document.getElementById('configMonto').value = configPago.montoBase;
   document.getElementById('ovConfig').classList.add('open');
 }
-function saveConfig() {
+async function saveConfig() {
   configPago.montoBase = parseFloat(document.getElementById('configMonto').value) || 15000;
-  saveConfigLocal();
+  await _sb.from('config').upsert({ key: 'monto_base', value: String(configPago.montoBase) }, { onConflict: 'key' });
   closeOverlayDirect('ovConfig');
   alert('Monto base guardado: $' + fmt$(configPago.montoBase));
 }
