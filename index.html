@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Registro Scout</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --verde: #2e7d32;
+      --verde-claro: #43a047;
+      --verde-fondo: #e8f5e9;
+      --amarillo: #f9a825;
+      --gris: #f5f5f5;
+      --borde: #c8e6c9;
+      --texto: #1b2a1b;
+      --error: #c62828;
+      --sombra: 0 4px 18px rgba(0,0,0,0.10);
+    }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: var(--verde-fondo);
+      color: var(--texto);
+      min-height: 100vh;
+      padding: 0 0 60px;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--verde);
+      color: #fff;
+      padding: 28px 20px 24px;
+      text-align: center;
+      position: relative;
+    }
+    header .fleur-de-lis {
+      font-size: 48px;
+      line-height: 1;
+      display: block;
+      margin-bottom: 8px;
+    }
+    header h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: 1px; }
+    header p  { font-size: 0.95rem; opacity: .85; margin-top: 4px; }
+
+    /* ── PROGRESS BAR ── */
+    .progress-wrap {
+      background: #1b5e20;
+      padding: 14px 20px;
+      display: flex;
+      justify-content: center;
+      gap: 0;
+    }
+    .step-dot {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      flex: 1;
+      max-width: 140px;
+    }
+    .step-dot:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      width: 100%;
+      height: 3px;
+      background: rgba(255,255,255,.3);
+      z-index: 0;
+    }
+    .step-dot.done:not(:last-child)::after { background: var(--amarillo); }
+    .dot-circle {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.25);
+      border: 2px solid rgba(255,255,255,.5);
+      color: #fff;
+      font-weight: 700;
+      font-size: .8rem;
+      display: flex; align-items: center; justify-content: center;
+      position: relative; z-index: 1;
+      transition: background .3s, border-color .3s;
+    }
+    .step-dot.active .dot-circle { background: var(--amarillo); border-color: var(--amarillo); color: #1b2a1b; }
+    .step-dot.done   .dot-circle { background: var(--amarillo); border-color: var(--amarillo); color: #1b2a1b; }
+    .dot-label { color: rgba(255,255,255,.8); font-size: .65rem; margin-top: 5px; text-align: center; }
+    .step-dot.active .dot-label, .step-dot.done .dot-label { color: #fff; font-weight: 600; }
+
+    /* ── FORM CONTAINER ── */
+    .container { max-width: 800px; margin: 0 auto; padding: 30px 16px 0; }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: var(--sombra);
+      overflow: hidden;
+      margin-bottom: 28px;
+    }
+
+    .card-header {
+      background: var(--verde);
+      color: #fff;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .card-header .icon { font-size: 1.5rem; }
+    .card-header h2 { font-size: 1.1rem; font-weight: 700; }
+    .card-header p  { font-size: .8rem; opacity: .8; margin-top: 2px; }
+
+    .card-body { padding: 24px; }
+
+    /* ── GRID ── */
+    .grid { display: grid; gap: 16px; }
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .span-2 { grid-column: span 2; }
+    .span-3 { grid-column: span 3; }
+
+    @media (max-width: 600px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .span-2, .span-3 { grid-column: span 1; }
+    }
+
+    /* ── FIELDS ── */
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label {
+      font-size: .82rem;
+      font-weight: 600;
+      color: var(--verde);
+      letter-spacing: .3px;
+    }
+    .field label .req { color: var(--error); margin-left: 2px; }
+
+    .field input,
+    .field select,
+    .field textarea {
+      padding: 10px 12px;
+      border: 1.5px solid var(--borde);
+      border-radius: 8px;
+      font-size: .95rem;
+      color: var(--texto);
+      background: var(--gris);
+      transition: border-color .2s, box-shadow .2s;
+      width: 100%;
+    }
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      outline: none;
+      border-color: var(--verde-claro);
+      box-shadow: 0 0 0 3px rgba(67,160,71,.15);
+      background: #fff;
+    }
+    .field input.error, .field select.error { border-color: var(--error); }
+    .field .hint { font-size: .75rem; color: #777; }
+    .field .err-msg { font-size: .75rem; color: var(--error); display: none; }
+    .field input.error ~ .err-msg,
+    .field select.error ~ .err-msg { display: block; }
+
+    /* RUT formatting badge */
+    .rut-wrap { position: relative; }
+    .rut-wrap input { padding-right: 80px; }
+    .rut-badge {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: .7rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+      background: #e0e0e0;
+      color: #555;
+      pointer-events: none;
+    }
+    .rut-badge.ok { background: #c8e6c9; color: #2e7d32; }
+    .rut-badge.bad { background: #ffcdd2; color: #c62828; }
+
+    /* ── DIVIDER ── */
+    .divider {
+      border: none;
+      border-top: 1.5px dashed var(--borde);
+      margin: 20px 0;
+    }
+
+    /* ── NAVIGATION BUTTONS ── */
+    .nav-buttons {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+      gap: 12px;
+    }
+    .btn {
+      padding: 12px 28px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .2s, transform .1s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-prev { background: #e0e0e0; color: #444; }
+    .btn-prev:hover { background: #d4d4d4; }
+    .btn-next { background: var(--verde); color: #fff; margin-left: auto; }
+    .btn-next:hover { background: var(--verde-claro); }
+    .btn-submit { background: var(--amarillo); color: #1b2a1b; margin-left: auto; }
+    .btn-submit:hover { background: #f0a500; }
+
+    /* ── STEPS ── */
+    .step { display: none; }
+    .step.active { display: block; }
+
+    /* ── SUCCESS SCREEN ── */
+    #success {
+      display: none;
+      text-align: center;
+      padding: 50px 20px;
+    }
+    #success .check { font-size: 80px; }
+    #success h2 { font-size: 1.8rem; color: var(--verde); margin: 16px 0 8px; }
+    #success p  { color: #555; font-size: 1rem; max-width: 400px; margin: 0 auto 20px; }
+    #success .folio {
+      display: inline-block;
+      background: var(--verde);
+      color: #fff;
+      padding: 10px 24px;
+      border-radius: 30px;
+      font-weight: 700;
+      font-size: 1.1rem;
+      letter-spacing: 1px;
+      margin-bottom: 28px;
+    }
+    .btn-nuevo {
+      background: var(--verde);
+      color: #fff;
+      padding: 12px 32px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* ── RESUMEN ── */
+    .resumen-group { margin-bottom: 20px; }
+    .resumen-group h3 {
+      font-size: .85rem;
+      font-weight: 700;
+      color: var(--verde);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      border-bottom: 1px solid var(--borde);
+      padding-bottom: 4px;
+      margin-bottom: 10px;
+    }
+    .resumen-row {
+      display: flex;
+      gap: 8px;
+      font-size: .9rem;
+      padding: 3px 0;
+    }
+    .resumen-row .label { font-weight: 600; min-width: 160px; color: #555; }
+    .resumen-row .value { color: var(--texto); }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="fleur-de-lis">⚜️</span>
+  <h1>Portal de Registro Scout</h1>
+  <p>Completa el formulario para inscribir a tu scout</p>
+  <a href="admin.html" style="position:absolute;top:16px;right:20px;background:rgba(255,255,255,.15);color:#fff;padding:7px 16px;border-radius:20px;font-size:.8rem;font-weight:600;text-decoration:none;border:1px solid rgba(255,255,255,.3);">📊 Admin</a>
+</header>
+
+<!-- PROGRESS -->
+<div class="progress-wrap" id="progressBar">
+  <div class="step-dot active" id="pd1">
+    <div class="dot-circle">1</div>
+    <div class="dot-label">Scout</div>
+  </div>
+  <div class="step-dot" id="pd2">
+    <div class="dot-circle">2</div>
+    <div class="dot-label">Apoderado</div>
+  </div>
+  <div class="step-dot" id="pd3">
+    <div class="dot-circle">3</div>
+    <div class="dot-label">Emergencia</div>
+  </div>
+  <div class="step-dot" id="pd4">
+    <div class="dot-circle">4</div>
+    <div class="dot-label">Confirmación</div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ════════════════ STEP 1 – DATOS SCOUT ════════════════ -->
+  <div class="step active" id="step1">
+    <div class="card">
+      <div class="card-header">
+        <span class="icon">🧒</span>
+        <div>
+          <h2>Datos del Scout</h2>
+          <p>Información personal del integrante</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="grid grid-3">
+
+          <div class="field span-3">
+            <label>RUT <span class="req">*</span></label>
+            <div class="rut-wrap">
+              <input type="text" id="rut" placeholder="12.345.678-9" maxlength="12" autocomplete="off" />
+              <span class="rut-badge" id="rutBadge">—</span>
+            </div>
+            <span class="err-msg" id="rutErr">RUT inválido</span>
+          </div>
+
+          <div class="field span-3">
+            <label>Nombres <span class="req">*</span></label>
+            <input type="text" id="nombres" placeholder="Juan Andrés" />
+          </div>
+
+          <div class="field">
+            <label>Apellido Paterno <span class="req">*</span></label>
+            <input type="text" id="apPaterno" placeholder="González" />
+          </div>
+
+          <div class="field">
+            <label>Apellido Materno <span class="req">*</span></label>
+            <input type="text" id="apMaterno" placeholder="Pérez" />
+          </div>
+
+          <div class="field">
+            <label>Fecha de Nacimiento <span class="req">*</span></label>
+            <input type="date" id="fechaNac" />
+          </div>
+
+          <div class="field">
+            <label>Edad</label>
+            <input type="text" id="edad" placeholder="Se calcula automáticamente" readonly
+              style="background:#e8f5e9; font-weight:600; color:var(--verde);" />
+          </div>
+
+          <div class="field">
+            <label>Teléfono <span class="req">*</span></label>
+            <input type="tel" id="telefono" placeholder="+56 9 1234 5678" maxlength="16" />
+          </div>
+
+          <div class="field span-2">
+            <label>Correo Electrónico <span class="req">*</span></label>
+            <input type="email" id="correo" placeholder="correo@ejemplo.com" />
+          </div>
+
+          <hr class="divider span-3" />
+
+          <div class="field">
+            <label>Colegio <span class="req">*</span></label>
+            <input type="text" id="colegio" placeholder="Nombre del establecimiento" />
+          </div>
+
+          <div class="field">
+            <label>Unidad Scout <span class="req">*</span></label>
+            <select id="unidad">
+              <option value="">— Seleccionar —</option>
+              <option value="Manada">Manada (7 – 11 años)</option>
+              <option value="Banda">Banda (7 – 11 años)</option>
+              <option value="Scout">Scout (11 – 15 años)</option>
+              <option value="Guías">Guías (11 – 15 años)</option>
+              <option value="Avanzada">Avanzada (15 – 17 años)</option>
+              <option value="Clan">Clan (17 – 21 años)</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Religión que profesa</label>
+            <select id="religion">
+              <option value="">— Seleccionar —</option>
+              <option>Católica</option>
+              <option>Evangélica / Protestante</option>
+              <option>Adventista</option>
+              <option>Mormona</option>
+              <option>Judía</option>
+              <option>Islámica</option>
+              <option>Testigos de Jehová</option>
+              <option>Ortodoxa</option>
+              <option>Sin religión</option>
+              <option>Otra</option>
+            </select>
+          </div>
+
+          <div class="field span-3">
+            <label>Dirección <span class="req">*</span></label>
+            <input type="text" id="direccion" placeholder="Calle, número, comuna, ciudad" />
+          </div>
+
+        </div><!-- /grid -->
+      </div><!-- /card-body -->
+    </div><!-- /card -->
+
+    <div class="nav-buttons">
+      <button class="btn btn-next" onclick="goStep(2)">Siguiente &nbsp;›</button>
+    </div>
+  </div><!-- /step1 -->
+
+
+  <!-- ════════════════ STEP 2 – APODERADO ════════════════ -->
+  <div class="step" id="step2">
+    <div class="card">
+      <div class="card-header">
+        <span class="icon">👨‍👩‍👦</span>
+        <div>
+          <h2>Datos del Apoderado</h2>
+          <p>Responsable legal o tutor del scout</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="grid grid-2">
+
+          <div class="field span-2">
+            <label>Nombre completo <span class="req">*</span></label>
+            <input type="text" id="apNombre" placeholder="Nombre y apellidos del apoderado" />
+          </div>
+
+          <div class="field">
+            <label>RUT <span class="req">*</span></label>
+            <div class="rut-wrap">
+              <input type="text" id="apRut" placeholder="12.345.678-9" maxlength="12" autocomplete="off" />
+              <span class="rut-badge" id="apRutBadge">—</span>
+            </div>
+            <span class="err-msg" id="apRutErr">RUT inválido</span>
+          </div>
+
+          <div class="field">
+            <label>Parentesco <span class="req">*</span></label>
+            <select id="apParentesco">
+              <option value="">— Seleccionar —</option>
+              <option>Padre</option>
+              <option>Madre</option>
+              <option>Abuelo/a</option>
+              <option>Tío/a</option>
+              <option>Hermano/a mayor</option>
+              <option>Tutor legal</option>
+              <option>Otro</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Correo Electrónico <span class="req">*</span></label>
+            <input type="email" id="apCorreo" placeholder="apoderado@ejemplo.com" />
+          </div>
+
+          <div class="field">
+            <label>Teléfono <span class="req">*</span></label>
+            <input type="tel" id="apTelefono" placeholder="+56 9 1234 5678" maxlength="16" />
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn btn-prev" onclick="goStep(1)">‹ &nbsp;Anterior</button>
+      <button class="btn btn-next" onclick="goStep(3)">Siguiente &nbsp;›</button>
+    </div>
+  </div><!-- /step2 -->
+
+
+  <!-- ════════════════ STEP 3 – EMERGENCIA ════════════════ -->
+  <div class="step" id="step3">
+    <div class="card">
+      <div class="card-header">
+        <span class="icon">🚨</span>
+        <div>
+          <h2>Contacto de Emergencia</h2>
+          <p>Persona a contactar ante cualquier emergencia</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="grid grid-2">
+
+          <div class="field span-2">
+            <label>Nombre completo <span class="req">*</span></label>
+            <input type="text" id="emNombre" placeholder="Nombre y apellidos" />
+          </div>
+
+          <div class="field">
+            <label>Parentesco <span class="req">*</span></label>
+            <select id="emParentesco">
+              <option value="">— Seleccionar —</option>
+              <option>Padre</option>
+              <option>Madre</option>
+              <option>Abuelo/a</option>
+              <option>Tío/a</option>
+              <option>Hermano/a mayor</option>
+              <option>Tutor legal</option>
+              <option>Vecino/a de confianza</option>
+              <option>Otro</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Teléfono <span class="req">*</span></label>
+            <input type="tel" id="emTelefono" placeholder="+56 9 1234 5678" maxlength="16" />
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn btn-prev" onclick="goStep(2)">‹ &nbsp;Anterior</button>
+      <button class="btn btn-next" onclick="goStep(4)">Siguiente &nbsp;›</button>
+    </div>
+  </div><!-- /step3 -->
+
+
+  <!-- ════════════════ STEP 4 – CONFIRMACIÓN ════════════════ -->
+  <div class="step" id="step4">
+    <div class="card">
+      <div class="card-header">
+        <span class="icon">📋</span>
+        <div>
+          <h2>Confirmar Registro</h2>
+          <p>Revisa los datos antes de enviar</p>
+        </div>
+      </div>
+      <div class="card-body" id="resumenBody">
+        <!-- Se llena dinámicamente -->
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn btn-prev" onclick="goStep(3)">‹ &nbsp;Anterior</button>
+      <button class="btn btn-submit" onclick="submitForm()">✅ &nbsp;Confirmar Registro</button>
+    </div>
+  </div><!-- /step4 -->
+
+
+  <!-- ════════════════ SUCCESS ════════════════ -->
+  <div id="success">
+    <div class="card">
+      <div class="card-body">
+        <div class="check">✅</div>
+        <h2>¡Registro exitoso!</h2>
+        <p>El scout ha sido inscrito correctamente. Guarda tu número de folio.</p>
+        <div class="folio" id="folioNum">FOLIO #000000</div>
+        <br />
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:8px;">
+          <button class="btn-nuevo" onclick="resetForm()">+ Nuevo Registro</button>
+          <a href="admin.html" style="display:inline-block;padding:12px 28px;background:#1b5e20;color:#fff;border-radius:10px;font-weight:700;font-size:1rem;text-decoration:none;">📊 Ver Panel Admin</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+// ── RUT UTILS ──────────────────────────────────────────────
+function formatRut(value) {
+  let v = value.replace(/[^0-9kK]/g, '').toUpperCase();
+  if (v.length < 2) return v;
+  const dv = v.slice(-1);
+  let num = v.slice(0, -1);
+  let fmt = '';
+  while (num.length > 3) {
+    fmt = '.' + num.slice(-3) + fmt;
+    num = num.slice(0, -3);
+  }
+  return num + fmt + '-' + dv;
+}
+
+function validateRut(rut) {
+  const clean = rut.replace(/[^0-9kK]/g, '').toUpperCase();
+  if (clean.length < 2) return false;
+  const dv = clean.slice(-1);
+  const body = clean.slice(0, -1);
+  if (!/^\d+$/.test(body)) return false;
+  let sum = 0, mul = 2;
+  for (let i = body.length - 1; i >= 0; i--) {
+    sum += parseInt(body[i]) * mul;
+    mul = mul === 7 ? 2 : mul + 1;
+  }
+  const expected = 11 - (sum % 11);
+  const check = expected === 11 ? '0' : expected === 10 ? 'K' : String(expected);
+  return dv === check;
+}
+
+function bindRut(inputId, badgeId, errId) {
+  const inp = document.getElementById(inputId);
+  const badge = document.getElementById(badgeId);
+  const err = document.getElementById(errId);
+  inp.addEventListener('input', () => {
+    inp.value = formatRut(inp.value);
+    const ok = validateRut(inp.value);
+    const hasValue = inp.value.replace(/[^0-9kK]/g, '').length > 0;
+    badge.textContent = hasValue ? (ok ? '✓ OK' : '✗ Inválido') : '—';
+    badge.className = 'rut-badge' + (hasValue ? (ok ? ' ok' : ' bad') : '');
+    inp.classList.toggle('error', hasValue && !ok);
+    if (err) err.style.display = (hasValue && !ok) ? 'block' : 'none';
+  });
+}
+
+// ── EDAD AUTOMÁTICA ───────────────────────────────────────
+document.getElementById('fechaNac').addEventListener('change', function() {
+  const dob = new Date(this.value);
+  if (isNaN(dob)) return;
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+  document.getElementById('edad').value = age >= 0 ? age + ' años' : '';
+  // Sugerir unidad según edad
+  if (age >= 0) {
+    const unidadSel = document.getElementById('unidad');
+    if (!unidadSel.value) {
+      if      (age >= 7  && age <= 10) unidadSel.value = 'Manada';
+      else if (age >= 11 && age <= 14) unidadSel.value = 'Scout';
+      else if (age >= 15 && age <= 16) unidadSel.value = 'Avanzada';
+      else if (age >= 17 && age <= 21) unidadSel.value = 'Clan';
+    }
+    // mostrar nota de sugerencia
+    let hint = document.getElementById('unidadHint');
+    if (!hint) {
+      hint = document.createElement('span');
+      hint.id = 'unidadHint';
+      hint.className = 'hint';
+      unidadSel.parentNode.appendChild(hint);
+    }
+    const rangos = {Manada:'7–11',Banda:'7–11',Scout:'11–15',Guías:'11–15',Avanzada:'15–17',Clan:'17–21'};
+    const sugerida = unidadSel.value;
+    hint.textContent = sugerida ? `✓ Sugerida por edad (${age} años): ${sugerida} (${rangos[sugerida]})` : `Edad: ${age} años — selecciona la unidad manualmente`;
+    hint.style.color = sugerida ? 'var(--verde)' : '#e65100';
+  }
+});
+
+// ── PHONE FORMATTING ──────────────────────────────────────
+function bindPhone(id) {
+  document.getElementById(id).addEventListener('input', function() {
+    let v = this.value.replace(/[^\d+]/g, '');
+    if (v.startsWith('+56') && v.length > 3) {
+      const rest = v.slice(3).replace(/\D/g, '');
+      v = '+56 ' + rest.replace(/(\d{1})(\d{4})(\d{4})/, '$1 $2 $3');
+    }
+    this.value = v;
+  });
+}
+
+// ── STEP NAVIGATION ───────────────────────────────────────
+let currentStep = 1;
+const totalSteps = 4;
+
+function goStep(n) {
+  if (n > currentStep && !validateStep(currentStep)) return;
+  document.getElementById('step' + currentStep).classList.remove('active');
+  document.getElementById('pd' + currentStep).classList.remove('active');
+  document.getElementById('pd' + currentStep).classList.add('done');
+
+  currentStep = n;
+  document.getElementById('step' + currentStep).classList.add('active');
+
+  for (let i = 1; i <= totalSteps; i++) {
+    const dot = document.getElementById('pd' + i);
+    dot.classList.remove('active', 'done');
+    if (i < n) dot.classList.add('done');
+    if (i === n) dot.classList.add('active');
+  }
+
+  if (n === 4) buildResumen();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── VALIDATION ────────────────────────────────────────────
+function req(id) {
+  const el = document.getElementById(id);
+  const ok = el.value.trim() !== '';
+  el.classList.toggle('error', !ok);
+  return ok;
+}
+
+function validateStep(step) {
+  let ok = true;
+  if (step === 1) {
+    const rutOk = validateRut(document.getElementById('rut').value);
+    document.getElementById('rut').classList.toggle('error', !rutOk);
+    ok = rutOk;
+    ['nombres','apPaterno','apMaterno','fechaNac','telefono','correo','colegio','unidad','direccion'].forEach(id => {
+      if (!req(id)) ok = false;
+    });
+    const correo = document.getElementById('correo').value;
+    if (!/\S+@\S+\.\S+/.test(correo)) {
+      document.getElementById('correo').classList.add('error');
+      ok = false;
+    }
+  }
+  if (step === 2) {
+    const rutOk = validateRut(document.getElementById('apRut').value);
+    document.getElementById('apRut').classList.toggle('error', !rutOk);
+    ok = rutOk;
+    ['apNombre','apParentesco','apCorreo','apTelefono'].forEach(id => {
+      if (!req(id)) ok = false;
+    });
+  }
+  if (step === 3) {
+    ['emNombre','emParentesco','emTelefono'].forEach(id => {
+      if (!req(id)) ok = false;
+    });
+  }
+  if (!ok) shakeCard('step' + step);
+  return ok;
+}
+
+function shakeCard(stepId) {
+  const card = document.querySelector('#' + stepId + ' .card');
+  if (!card) return;
+  card.style.animation = 'none';
+  card.style.transition = 'transform .08s';
+  let times = 0;
+  const dirs = [6, -6, 4, -4, 2, -2, 0];
+  const shake = () => {
+    card.style.transform = `translateX(${dirs[times]}px)`;
+    times++;
+    if (times < dirs.length) setTimeout(shake, 60);
+    else card.style.transform = '';
+  };
+  shake();
+}
+
+// ── RESUMEN ───────────────────────────────────────────────
+function v(id) { return document.getElementById(id).value || '—'; }
+
+function buildResumen() {
+  const body = document.getElementById('resumenBody');
+  body.innerHTML = `
+    <div class="resumen-group">
+      <h3>Scout</h3>
+      <div class="resumen-row"><span class="label">RUT</span><span class="value">${v('rut')}</span></div>
+      <div class="resumen-row"><span class="label">Nombre completo</span><span class="value">${v('nombres')} ${v('apPaterno')} ${v('apMaterno')}</span></div>
+      <div class="resumen-row"><span class="label">Fecha de nacimiento</span><span class="value">${formatDate(v('fechaNac'))}</span></div>
+      <div class="resumen-row"><span class="label">Edad</span><span class="value">${v('edad')}</span></div>
+      <div class="resumen-row"><span class="label">Teléfono</span><span class="value">${v('telefono')}</span></div>
+      <div class="resumen-row"><span class="label">Correo</span><span class="value">${v('correo')}</span></div>
+      <div class="resumen-row"><span class="label">Colegio</span><span class="value">${v('colegio')}</span></div>
+      <div class="resumen-row"><span class="label">Unidad Scout</span><span class="value">${v('unidad')}</span></div>
+      <div class="resumen-row"><span class="label">Dirección</span><span class="value">${v('direccion')}</span></div>
+      <div class="resumen-row"><span class="label">Religión</span><span class="value">${v('religion')}</span></div>
+    </div>
+    <div class="resumen-group">
+      <h3>Apoderado</h3>
+      <div class="resumen-row"><span class="label">Nombre</span><span class="value">${v('apNombre')}</span></div>
+      <div class="resumen-row"><span class="label">RUT</span><span class="value">${v('apRut')}</span></div>
+      <div class="resumen-row"><span class="label">Parentesco</span><span class="value">${v('apParentesco')}</span></div>
+      <div class="resumen-row"><span class="label">Correo</span><span class="value">${v('apCorreo')}</span></div>
+      <div class="resumen-row"><span class="label">Teléfono</span><span class="value">${v('apTelefono')}</span></div>
+    </div>
+    <div class="resumen-group">
+      <h3>Emergencia</h3>
+      <div class="resumen-row"><span class="label">Nombre</span><span class="value">${v('emNombre')}</span></div>
+      <div class="resumen-row"><span class="label">Parentesco</span><span class="value">${v('emParentesco')}</span></div>
+      <div class="resumen-row"><span class="label">Teléfono</span><span class="value">${v('emTelefono')}</span></div>
+    </div>
+  `;
+}
+
+function formatDate(d) {
+  if (!d || d === '—') return '—';
+  const [y, m, day] = d.split('-');
+  return `${day}/${m}/${y}`;
+}
+
+// ── SUBMIT ────────────────────────────────────────────────
+function submitForm() {
+  const folio = 'SCT-' + Date.now().toString().slice(-6);
+  document.getElementById('folioNum').textContent = 'FOLIO #' + folio;
+
+  const record = {
+    folio,
+    fechaRegistro: new Date().toISOString(),
+    scout: {
+      rut: v('rut'), nombres: v('nombres'),
+      apPaterno: v('apPaterno'), apMaterno: v('apMaterno'),
+      fechaNac: v('fechaNac'), edad: v('edad'),
+      telefono: v('telefono'), correo: v('correo'),
+      colegio: v('colegio'), unidad: v('unidad'),
+      direccion: v('direccion'), religion: v('religion')
+    },
+    apoderado: {
+      nombre: v('apNombre'), rut: v('apRut'),
+      parentesco: v('apParentesco'), correo: v('apCorreo'),
+      telefono: v('apTelefono')
+    },
+    emergencia: {
+      nombre: v('emNombre'), parentesco: v('emParentesco'),
+      telefono: v('emTelefono')
+    }
+  };
+
+  const registros = JSON.parse(localStorage.getItem('scout_registros') || '[]');
+  registros.unshift(record);
+  localStorage.setItem('scout_registros', JSON.stringify(registros));
+
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById('step' + i).classList.remove('active');
+    document.getElementById('pd' + i).classList.add('done');
+  }
+  document.getElementById('success').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetForm() {
+  document.querySelectorAll('input, select').forEach(el => el.value = '');
+  document.getElementById('success').style.display = 'none';
+  currentStep = 1;
+  goStep(1);
+  document.getElementById('step1').classList.add('active');
+}
+
+// ── INIT ──────────────────────────────────────────────────
+bindRut('rut', 'rutBadge', 'rutErr');
+bindRut('apRut', 'apRutBadge', 'apRutErr');
+bindPhone('telefono');
+bindPhone('apTelefono');
+bindPhone('emTelefono');
+</script>
+</body>
+</html>

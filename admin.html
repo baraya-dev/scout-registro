@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel Admin — Scout</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --verde:        #2e7d32;
+      --verde-claro:  #43a047;
+      --verde-fondo:  #e8f5e9;
+      --amarillo:     #f9a825;
+      --borde:        #c8e6c9;
+      --texto:        #1b2a1b;
+      --gris:         #f5f5f5;
+      --sidebar-w:    230px;
+      --header-h:     58px;
+      --sombra:       0 4px 18px rgba(0,0,0,.09);
+    }
+
+    body { font-family:'Segoe UI',Arial,sans-serif; background:#f0f2f0; color:var(--texto); min-height:100vh; }
+
+    /* ══ HEADER ══════════════════════════════════════ */
+    .top-bar {
+      position: fixed; top:0; left:0; right:0; height:var(--header-h);
+      background:var(--verde); color:#fff;
+      display:flex; align-items:center; gap:12px;
+      padding:0 20px; z-index:200;
+      box-shadow:0 2px 10px rgba(0,0,0,.2);
+    }
+    .top-bar .logo { font-size:1.6rem; line-height:1; }
+    .top-bar h1   { font-size:1.05rem; font-weight:700; }
+    .top-bar .sub { font-size:.72rem; opacity:.75; margin-top:1px; }
+    .top-bar .spacer { flex:1; }
+    .top-bar a.new-btn {
+      background:rgba(255,255,255,.18);
+      color:#fff; padding:7px 16px; border-radius:20px;
+      font-size:.8rem; font-weight:600; text-decoration:none;
+      border:1px solid rgba(255,255,255,.3); transition:background .2s;
+    }
+    .top-bar a.new-btn:hover { background:rgba(255,255,255,.28); }
+    .hamburger {
+      display:none; background:none; border:none; color:#fff;
+      font-size:1.4rem; cursor:pointer; padding:4px 8px;
+    }
+
+    /* ══ SIDEBAR ══════════════════════════════════════ */
+    .sidebar {
+      position:fixed; top:var(--header-h); left:0; bottom:0;
+      width:var(--sidebar-w); background:#1b5e20; overflow-y:auto;
+      z-index:150; transition:transform .25s;
+    }
+    .sidebar-section { padding:14px 12px 6px; }
+    .sidebar-label {
+      font-size:.65rem; font-weight:700; letter-spacing:.8px;
+      text-transform:uppercase; color:rgba(255,255,255,.4);
+      padding:0 8px 6px;
+    }
+    .nav-item {
+      display:flex; align-items:center; gap:10px;
+      padding:9px 12px; border-radius:9px;
+      color:rgba(255,255,255,.75); font-size:.88rem;
+      cursor:pointer; user-select:none; transition:all .15s;
+      text-decoration:none; margin-bottom:2px;
+    }
+    .nav-item:hover   { background:rgba(255,255,255,.12); color:#fff; }
+    .nav-item.active  { background:var(--verde-claro); color:#fff; font-weight:600; }
+    .nav-item .icon   { font-size:1rem; width:20px; text-align:center; }
+    .nav-item .arrow  { margin-left:auto; font-size:.7rem; transition:transform .2s; }
+    .nav-item.open .arrow { transform:rotate(90deg); }
+
+    /* submenu */
+    .submenu { overflow:hidden; max-height:0; transition:max-height .25s ease; }
+    .submenu.open { max-height:200px; }
+    .sub-item {
+      display:flex; align-items:center; gap:8px;
+      padding:8px 12px 8px 40px;
+      color:rgba(255,255,255,.65); font-size:.84rem;
+      cursor:pointer; border-radius:8px; transition:all .15s;
+      margin-bottom:2px;
+    }
+    .sub-item:hover  { background:rgba(255,255,255,.1); color:#fff; }
+    .sub-item.active { background:rgba(255,255,255,.15); color:#fff; font-weight:600; }
+    .sub-dot { width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,.4); }
+    .sub-item.active .sub-dot { background:var(--amarillo); }
+
+    /* ══ MAIN CONTENT ══════════════════════════════════ */
+    .main {
+      margin-left:var(--sidebar-w);
+      margin-top:var(--header-h);
+      padding:28px 24px 60px;
+      min-height:calc(100vh - var(--header-h));
+    }
+
+    /* section visibility */
+    .section { display:none; }
+    .section.active { display:block; }
+
+    /* ══ SHARED COMPONENTS ════════════════════════════ */
+    .page-title { font-size:1.35rem; font-weight:800; color:var(--verde); margin-bottom:6px; }
+    .page-sub   { font-size:.85rem; color:#777; margin-bottom:24px; }
+
+    .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+    .stat-card {
+      background:#fff; border-radius:14px; padding:20px;
+      box-shadow:var(--sombra); display:flex; align-items:center; gap:14px;
+    }
+    .stat-icon { font-size:1.8rem; width:50px; height:50px; border-radius:12px;
+      display:flex; align-items:center; justify-content:center; }
+    .si-verde  { background:#e8f5e9; }
+    .si-azul   { background:#e3f2fd; }
+    .si-naranja{ background:#fff3e0; }
+    .si-morado { background:#f3e5f5; }
+    .si-rojo   { background:#ffebee; }
+    .si-cyan   { background:#e0f7fa; }
+    .stat-num  { font-size:1.7rem; font-weight:800; line-height:1; }
+    .stat-label{ font-size:.75rem; color:#777; margin-top:3px; }
+
+    /* toolbar */
+    .toolbar {
+      background:#fff; border-radius:12px; padding:14px 18px;
+      box-shadow:var(--sombra); margin-bottom:18px;
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+    }
+    .search-wrap { position:relative; flex:1; min-width:200px; }
+    .search-wrap input {
+      width:100%; padding:9px 12px 9px 36px;
+      border:1.5px solid var(--borde); border-radius:8px;
+      font-size:.9rem; background:var(--gris);
+    }
+    .search-wrap input:focus { outline:none; border-color:var(--verde-claro); background:#fff; }
+    .search-icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); opacity:.45; pointer-events:none; }
+    .filter-sel {
+      padding:9px 12px; border:1.5px solid var(--borde); border-radius:8px;
+      font-size:.85rem; background:var(--gris); cursor:pointer;
+    }
+    .filter-sel:focus { outline:none; border-color:var(--verde-claro); }
+    .btn-action {
+      padding:9px 18px; border:none; border-radius:8px;
+      font-size:.85rem; font-weight:600; cursor:pointer;
+      display:flex; align-items:center; gap:6px; transition:background .2s;
+    }
+    .btn-verde   { background:var(--verde); color:#fff; }
+    .btn-verde:hover { background:var(--verde-claro); }
+    .btn-amarillo { background:var(--amarillo); color:#1b2a1b; }
+    .btn-amarillo:hover { background:#e6980f; }
+
+    /* table card */
+    .table-card { background:#fff; border-radius:14px; box-shadow:var(--sombra); overflow:hidden; }
+    .table-head {
+      display:flex; justify-content:space-between; align-items:center;
+      padding:14px 20px; border-bottom:1px solid var(--borde);
+    }
+    .table-head h2 { font-size:.95rem; font-weight:700; color:var(--verde); }
+    .table-count   { font-size:.8rem; color:#888; }
+    table { width:100%; border-collapse:collapse; }
+    thead th {
+      background:#f9f9f9; padding:11px 16px;
+      text-align:left; font-size:.75rem; font-weight:700;
+      color:#666; text-transform:uppercase; letter-spacing:.4px;
+      border-bottom:1px solid var(--borde); white-space:nowrap;
+    }
+    tbody tr { border-bottom:1px solid #f0f0f0; transition:background .12s; }
+    tbody tr:last-child { border-bottom:none; }
+    tbody tr:hover { background:#f5faf5; }
+    tbody td { padding:12px 16px; font-size:.87rem; vertical-align:middle; }
+
+    .tag {
+      display:inline-block; padding:3px 10px; border-radius:20px;
+      font-size:.75rem; font-weight:700;
+    }
+    .tag-folio   { background:#e8f5e9; color:var(--verde); font-family:monospace; }
+    .tag-edad    { background:#fff3e0; color:#e65100; }
+    .tag-pagado  { background:#e8f5e9; color:#2e7d32; }
+    .tag-pendiente { background:#ffebee; color:#c62828; }
+    .tag-parcial { background:#fff8e1; color:#e65100; }
+    .tag-exento  { background:#e3f2fd; color:#1565c0; }
+
+    .td-nombre { font-weight:600; }
+    .td-sub    { font-size:.73rem; color:#888; margin-top:1px; }
+
+    .btn-sm {
+      padding:5px 13px; border-radius:7px; font-size:.78rem;
+      font-weight:600; cursor:pointer; border:none; transition:background .15s;
+    }
+    .btn-sm-verde  { background:var(--verde-fondo); color:var(--verde); border:1px solid var(--borde); }
+    .btn-sm-verde:hover { background:#c8e6c9; }
+    .btn-sm-pagar  { background:#e8f5e9; color:var(--verde); border:1px solid var(--borde); }
+    .btn-sm-pagar:hover { background:#c8e6c9; }
+    .btn-sm-del    { background:#ffebee; color:#c62828; border:1px solid #ffcdd2; margin-left:5px; }
+    .btn-sm-del:hover { background:#ffcdd2; }
+
+    /* empty */
+    .empty { text-align:center; padding:60px 20px; color:#aaa; }
+    .empty .ei { font-size:52px; margin-bottom:12px; }
+    .empty h3  { font-size:1.05rem; color:#888; margin-bottom:5px; }
+    .empty p   { font-size:.85rem; }
+    .empty a   { color:var(--verde); font-weight:600; }
+
+    /* pagination */
+    .pagination {
+      display:flex; align-items:center; justify-content:center;
+      gap:7px; padding:16px; border-top:1px solid var(--borde);
+    }
+    .pg-btn {
+      padding:5px 12px; border:1.5px solid var(--borde); background:#fff;
+      border-radius:7px; font-size:.83rem; cursor:pointer; transition:all .12s;
+    }
+    .pg-btn:hover, .pg-btn.active { background:var(--verde); color:#fff; border-color:var(--verde); }
+    .pg-btn:disabled { opacity:.4; cursor:default; }
+
+    /* ══ MODAL ════════════════════════════════════════ */
+    .overlay {
+      display:none; position:fixed; inset:0;
+      background:rgba(0,0,0,.45); z-index:300;
+      align-items:center; justify-content:center; padding:20px;
+    }
+    .overlay.open { display:flex; }
+    .modal {
+      background:#fff; border-radius:18px; max-width:660px; width:100%;
+      max-height:90vh; overflow-y:auto;
+      box-shadow:0 20px 60px rgba(0,0,0,.25);
+      animation:slideUp .22s ease;
+    }
+    @keyframes slideUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+    .modal-hdr {
+      background:var(--verde); color:#fff; padding:18px 22px;
+      border-radius:18px 18px 0 0;
+      display:flex; align-items:center; gap:10px;
+    }
+    .modal-hdr h2   { font-size:1.05rem; flex:1; }
+    .modal-hdr .mf  { font-family:monospace; font-size:.8rem; background:rgba(255,255,255,.2); padding:3px 10px; border-radius:20px; }
+    .modal-close    { background:rgba(255,255,255,.2); border:none; color:#fff; font-size:1.2rem; cursor:pointer; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+    .modal-body     { padding:22px; }
+    .modal-sec      { margin-bottom:20px; }
+    .modal-sec h3   { font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--verde); border-bottom:1px solid var(--borde); padding-bottom:4px; margin-bottom:11px; }
+    .modal-grid     { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+    .mf-item        { display:flex; flex-direction:column; gap:2px; }
+    .mf-lbl         { font-size:.7rem; font-weight:700; color:#888; text-transform:uppercase; letter-spacing:.3px; }
+    .mf-val         { font-size:.9rem; color:var(--texto); font-weight:500; }
+    .modal-ftr      { padding:14px 22px; border-top:1px solid var(--borde); display:flex; justify-content:flex-end; gap:10px; }
+    .btn-cerrar     { padding:9px 22px; background:#e0e0e0; border:none; border-radius:8px; font-weight:600; cursor:pointer; }
+
+    /* ══ PAGO MODAL ═══════════════════════════════════ */
+    .pago-form .field { display:flex; flex-direction:column; gap:5px; margin-bottom:14px; }
+    .pago-form label  { font-size:.8rem; font-weight:700; color:var(--verde); }
+    .pago-form input,
+    .pago-form select,
+    .pago-form textarea {
+      padding:9px 12px; border:1.5px solid var(--borde); border-radius:8px;
+      font-size:.93rem; background:var(--gris); width:100%;
+    }
+    .pago-form input:focus,
+    .pago-form select:focus { outline:none; border-color:var(--verde-claro); background:#fff; }
+    .pago-form .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .pago-form .monto-wrap { position:relative; }
+    .pago-form .currency { position:absolute; left:11px; top:50%; transform:translateY(-50%); font-weight:700; color:#888; pointer-events:none; }
+    .pago-form .monto-wrap input { padding-left:32px; }
+    .btn-guardar-pago {
+      width:100%; padding:12px; background:var(--verde); color:#fff;
+      border:none; border-radius:10px; font-size:1rem; font-weight:700;
+      cursor:pointer; margin-top:6px; transition:background .2s;
+    }
+    .btn-guardar-pago:hover { background:var(--verde-claro); }
+
+    /* ══ PROGRESS BAR PAGO ═══════════════════════════ */
+    .pago-progress { margin:6px 0 0; }
+    .pbar-bg { background:#e0e0e0; border-radius:20px; height:7px; overflow:hidden; }
+    .pbar-fill { height:100%; border-radius:20px; background:var(--verde-claro); transition:width .4s; }
+    .pbar-label { font-size:.7rem; color:#888; margin-top:3px; text-align:right; }
+
+    /* ══ RESPONSIVE ═══════════════════════════════════ */
+    @media (max-width:860px) {
+      .sidebar { transform:translateX(-100%); }
+      .sidebar.open { transform:translateX(0); }
+      .main { margin-left:0; }
+      .hamburger { display:block; }
+      .stats { grid-template-columns:repeat(2,1fr); }
+    }
+    @media (max-width:580px) {
+      .stats { grid-template-columns:1fr 1fr; }
+      .modal-grid { grid-template-columns:1fr; }
+      .pago-form .grid2 { grid-template-columns:1fr; }
+    }
+    .table-overflow { overflow-x:auto; }
+    @media (max-width:700px) { table { min-width:580px; } }
+  </style>
+</head>
+<body>
+
+<!-- ══ HEADER ══════════════════════════════════════════ -->
+<div class="top-bar">
+  <button class="hamburger" onclick="toggleSidebar()">☰</button>
+  <div class="logo">⚜️</div>
+  <div>
+    <div class="h1">Panel de Administración Scout</div>
+    <div class="sub">Gestión de integrantes y pagos</div>
+  </div>
+  <div class="spacer"></div>
+  <a href="index.html" class="new-btn">+ Nuevo Registro</a>
+</div>
+
+<!-- ══ SIDEBAR ═════════════════════════════════════════ -->
+<nav class="sidebar" id="sidebar">
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Principal</div>
+    <a class="nav-item active" id="nav-dashboard" onclick="showSection('dashboard')">
+      <span class="icon">📊</span> Dashboard
+    </a>
+    <a class="nav-item" id="nav-registros" onclick="showSection('registros')">
+      <span class="icon">🧒</span> Registros
+    </a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Finanzas</div>
+    <!-- Pagos: parent item con submenu -->
+    <div class="nav-item" id="nav-pagos-parent" onclick="toggleSubmenu('submenu-pagos', 'nav-pagos-parent')">
+      <span class="icon">💰</span> Pagos
+      <span class="arrow">›</span>
+    </div>
+    <div class="submenu" id="submenu-pagos">
+      <div class="sub-item active" id="sub-pagos-registro" onclick="showSection('pagos-registro')">
+        <span class="sub-dot"></span> Pagos de Registro
+      </div>
+    </div>
+  </div>
+
+</nav>
+
+<!-- ══ MAIN ════════════════════════════════════════════ -->
+<main class="main" id="main">
+
+  <!-- ─── DASHBOARD ──────────────────────────────── -->
+  <div class="section active" id="section-dashboard">
+    <div class="page-title">Dashboard</div>
+    <div class="page-sub">Resumen general del grupo scout</div>
+
+    <div class="stats" id="dashStats"></div>
+
+    <div class="table-card">
+      <div class="table-head">
+        <h2>Últimos registros</h2>
+        <span class="table-count" id="dashUltimosCnt"></span>
+      </div>
+      <div id="dashUltimos"></div>
+    </div>
+  </div>
+
+  <!-- ─── REGISTROS ───────────────────────────────── -->
+  <div class="section" id="section-registros">
+    <div class="page-title">Registros</div>
+    <div class="page-sub">Listado completo de scouts inscritos</div>
+
+    <div class="toolbar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="regSearch" placeholder="Buscar nombre, RUT, colegio…" oninput="renderRegistros()" />
+      </div>
+      <select class="filter-sel" id="regFilterRel" onchange="renderRegistros()">
+        <option value="">Todas las religiones</option>
+      </select>
+      <select class="filter-sel" id="regFilterEdad" onchange="renderRegistros()">
+        <option value="">Todos los rangos de edad</option>
+        <option value="7-11">Manada / Banda (7–11)</option>
+        <option value="11-15">Scout / Guías (11–15)</option>
+        <option value="15-17">Avanzada (15–17)</option>
+        <option value="17-21">Clan (17–21)</option>
+      </select>
+      <button class="btn-action btn-verde" onclick="exportCSV()">⬇️ Exportar CSV</button>
+    </div>
+
+    <div class="table-card">
+      <div class="table-head">
+        <h2>Scouts</h2>
+        <span class="table-count" id="regCount"></span>
+      </div>
+      <div class="table-overflow" id="regTableBody"></div>
+      <div class="pagination" id="regPag"></div>
+    </div>
+  </div>
+
+  <!-- ─── PAGOS DE REGISTRO ───────────────────────── -->
+  <div class="section" id="section-pagos-registro">
+    <div class="page-title">Pagos de Registro</div>
+    <div class="page-sub">Control de cobros de inscripción por scout</div>
+
+    <div class="stats" id="pagoStats"></div>
+
+    <div class="toolbar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="pagoSearch" placeholder="Buscar scout…" oninput="renderPagos()" />
+      </div>
+      <select class="filter-sel" id="pagoFilterUnidad" onchange="renderPagos()">
+        <option value="">Todas las unidades</option>
+        <option value="Manada">Manada (7–11)</option>
+        <option value="Banda">Banda (7–11)</option>
+        <option value="Scout">Scout (11–15)</option>
+        <option value="Guías">Guías (11–15)</option>
+        <option value="Avanzada">Avanzada (15–17)</option>
+        <option value="Clan">Clan (17–21)</option>
+      </select>
+      <select class="filter-sel" id="pagoFilterEstado" onchange="renderPagos()">
+        <option value="">Todos los estados</option>
+        <option value="pendiente">Pendiente</option>
+        <option value="parcial">Parcial</option>
+        <option value="pagado">Pagado</option>
+        <option value="exento">Exento</option>
+      </select>
+      <button class="btn-action btn-amarillo" onclick="exportPagosCSV()">⬇️ Exportar Pagos</button>
+      <button class="btn-action btn-verde" onclick="openConfigPago()">⚙️ Monto base</button>
+    </div>
+
+    <div class="table-card">
+      <div class="table-head">
+        <h2>Estado de Pagos</h2>
+        <span class="table-count" id="pagoCount"></span>
+      </div>
+      <div class="table-overflow" id="pagoTableBody"></div>
+      <div class="pagination" id="pagoPag"></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ══ MODAL DETALLE REGISTRO ══════════════════════════ -->
+<div class="overlay" id="ovReg" onclick="closeOverlay('ovReg',event)">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2 id="regModalTitle">Detalle</h2>
+      <span class="mf" id="regModalFolio"></span>
+      <button class="modal-close" onclick="closeOverlayDirect('ovReg')">✕</button>
+    </div>
+    <div class="modal-body" id="regModalBody"></div>
+    <div class="modal-ftr">
+      <button class="btn-cerrar" onclick="closeOverlayDirect('ovReg')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL PAGO ═══════════════════════════════════════ -->
+<div class="overlay" id="ovPago" onclick="closeOverlay('ovPago',event)">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-hdr" style="background:#1b5e20">
+      <h2 id="pagoModalTitle">Registrar Pago</h2>
+      <button class="modal-close" onclick="closeOverlayDirect('ovPago')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="pagoScoutInfo" style="background:var(--verde-fondo);border-radius:10px;padding:12px 14px;margin-bottom:18px;"></div>
+      <form class="pago-form" onsubmit="return false">
+        <div class="grid2">
+          <div class="field">
+            <label>Monto a pagar (CLP)</label>
+            <div class="monto-wrap">
+              <span class="currency">$</span>
+              <input type="number" id="pagoMonto" min="0" placeholder="0" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Monto pagado (CLP)</label>
+            <div class="monto-wrap">
+              <span class="currency">$</span>
+              <input type="number" id="pagoPagado" min="0" placeholder="0" oninput="updatePagoStatus()" />
+            </div>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label>Fecha de pago</label>
+            <input type="date" id="pagoFecha" />
+          </div>
+          <div class="field">
+            <label>Método de pago</label>
+            <select id="pagoMetodo">
+              <option value="">— Seleccionar —</option>
+              <option>Efectivo</option>
+              <option>Transferencia</option>
+              <option>Cheque</option>
+              <option>Otro</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>N° Comprobante / Referencia</label>
+          <input type="text" id="pagoRef" placeholder="Opcional" />
+        </div>
+        <div class="field">
+          <label>Estado</label>
+          <select id="pagoEstado" onchange="syncEstadoManual()">
+            <option value="pendiente">Pendiente</option>
+            <option value="parcial">Parcial</option>
+            <option value="pagado">Pagado</option>
+            <option value="exento">Exento</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Observaciones</label>
+          <textarea id="pagoObs" rows="2" placeholder="Notas internas…" style="resize:vertical;border:1.5px solid var(--borde);border-radius:8px;padding:9px 12px;font-size:.9rem;font-family:inherit;background:var(--gris);width:100%"></textarea>
+        </div>
+        <div class="pago-progress" id="pagoProgressWrap" style="display:none">
+          <div class="pbar-bg"><div class="pbar-fill" id="pagoBar" style="width:0%"></div></div>
+          <div class="pbar-label" id="pagoBarLabel"></div>
+        </div>
+        <button class="btn-guardar-pago" onclick="guardarPago()">💾 Guardar Pago</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL CONFIG MONTO ═══════════════════════════════ -->
+<div class="overlay" id="ovConfig" onclick="closeOverlay('ovConfig',event)">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-hdr" style="background:#37474f">
+      <h2>⚙️ Monto Base de Registro</h2>
+      <button class="modal-close" onclick="closeOverlayDirect('ovConfig')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.88rem;color:#555;margin-bottom:16px;">Define el monto estándar de pago de registro. Se usará como valor predeterminado al registrar un pago.</p>
+      <div class="pago-form">
+        <div class="field">
+          <label>Monto base (CLP)</label>
+          <div class="monto-wrap">
+            <span class="currency">$</span>
+            <input type="number" id="configMonto" min="0" placeholder="15000" />
+          </div>
+        </div>
+        <button class="btn-guardar-pago" style="background:#37474f" onclick="saveConfig()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══ STATE ══════════════════════════════════════════════
+let allRecords = [];
+let pagos = {};           // { folio: { monto, pagado, fecha, metodo, ref, estado, obs } }
+let configPago = { montoBase: 15000 };
+let regPage = 1, pagPage = 1;
+const PER = 10;
+
+// ══ LOAD ═══════════════════════════════════════════════
+function loadData() {
+  allRecords  = JSON.parse(localStorage.getItem('scout_registros') || '[]');
+  pagos       = JSON.parse(localStorage.getItem('scout_pagos')     || '{}');
+  configPago  = JSON.parse(localStorage.getItem('scout_config')    || '{"montoBase":15000}');
+  syncPagosWithRecords();
+  populateFilters();
+  renderDashboard();
+  renderRegistros();
+  renderPagos();
+}
+
+function savePagos() { localStorage.setItem('scout_pagos', JSON.stringify(pagos)); }
+function saveConfigLocal() { localStorage.setItem('scout_config', JSON.stringify(configPago)); }
+
+// asegura que todo registro tenga entrada en pagos
+function syncPagosWithRecords() {
+  allRecords.forEach(r => {
+    if (!pagos[r.folio]) {
+      pagos[r.folio] = { monto: configPago.montoBase, pagado: 0, fecha: '', metodo: '', ref: '', estado: 'pendiente', obs: '' };
+    }
+  });
+  savePagos();
+}
+
+// ══ SIDEBAR & NAV ══════════════════════════════════════
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+function toggleSubmenu(id, parentId) {
+  const sm = document.getElementById(id);
+  const par = document.getElementById(parentId);
+  sm.classList.toggle('open');
+  par.classList.toggle('open');
+}
+function showSection(name) {
+  // hide all sections
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.sub-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('section-' + name).classList.add('active');
+  // nav highlight
+  const navEl = document.getElementById('nav-' + name);
+  if (navEl) navEl.classList.add('active');
+  const subEl = document.getElementById('sub-' + name);
+  if (subEl) {
+    subEl.classList.add('active');
+    // open parent submenu
+    const sm = subEl.closest('.submenu');
+    if (sm) { sm.classList.add('open'); }
+    const par = document.getElementById('nav-pagos-parent');
+    if (par) par.classList.add('open');
+  }
+  // close sidebar on mobile
+  if (window.innerWidth <= 860) document.getElementById('sidebar').classList.remove('open');
+}
+
+// ══ FILTERS ════════════════════════════════════════════
+function populateFilters() {
+  const rels = [...new Set(allRecords.map(r => r.scout.religion).filter(v => v && v !== '—'))];
+  const sel = document.getElementById('regFilterRel');
+  sel.innerHTML = '<option value="">Todas las religiones</option>';
+  rels.forEach(rel => {
+    const o = document.createElement('option');
+    o.value = rel; o.textContent = rel; sel.appendChild(o);
+  });
+}
+
+// ══ DASHBOARD ══════════════════════════════════════════
+function renderDashboard() {
+  const total = allRecords.length;
+  const hoy = new Date().toDateString();
+  const hoyN = allRecords.filter(r => new Date(r.fechaRegistro).toDateString() === hoy).length;
+  const edades = allRecords.map(r => parseInt(r.scout.edad)).filter(n => !isNaN(n));
+  const prom = edades.length ? Math.round(edades.reduce((a,b)=>a+b,0)/edades.length) : null;
+  const colegios = new Set(allRecords.map(r => r.scout.colegio).filter(Boolean)).size;
+
+  // pago stats
+  const pagoVals = allRecords.map(r => pagos[r.folio]);
+  const totalEsperado = pagoVals.reduce((s, p) => s + (p ? p.monto : 0), 0);
+  const totalRecaudado = pagoVals.reduce((s, p) => s + (p ? p.pagado : 0), 0);
+  const pagados = pagoVals.filter(p => p && p.estado === 'pagado').length;
+  const pendientes = pagoVals.filter(p => p && p.estado === 'pendiente').length;
+
+  document.getElementById('dashStats').innerHTML = `
+    <div class="stat-card"><div class="stat-icon si-verde">🧒</div><div><div class="stat-num">${total}</div><div class="stat-label">Scouts registrados</div></div></div>
+    <div class="stat-card"><div class="stat-icon si-azul">📅</div><div><div class="stat-num">${hoyN}</div><div class="stat-label">Registros hoy</div></div></div>
+    <div class="stat-card"><div class="stat-icon si-verde">✅</div><div><div class="stat-num">${pagados}</div><div class="stat-label">Pagos completos</div></div></div>
+    <div class="stat-card"><div class="stat-icon si-rojo">⏳</div><div><div class="stat-num">${pendientes}</div><div class="stat-label">Pagos pendientes</div></div></div>
+    <div class="stat-card"><div class="stat-icon si-naranja">💵</div><div><div class="stat-num">$${fmt$(totalRecaudado)}</div><div class="stat-label">Total recaudado</div></div></div>
+    <div class="stat-card"><div class="stat-icon si-cyan">🎂</div><div><div class="stat-num">${prom !== null ? prom + ' años' : '—'}</div><div class="stat-label">Edad promedio</div></div></div>
+  `;
+  document.getElementById('dashStats').style.gridTemplateColumns = 'repeat(3,1fr)';
+
+  // últimos 5 registros
+  const last5 = allRecords.slice(0, 5);
+  document.getElementById('dashUltimosCnt').textContent = 'últimos ' + last5.length;
+  if (!last5.length) {
+    document.getElementById('dashUltimos').innerHTML = `<div class="empty"><div class="ei">📋</div><h3>Sin registros</h3><p><a href="index.html">Registrar el primer scout →</a></p></div>`;
+    return;
+  }
+  document.getElementById('dashUltimos').innerHTML = `
+    <table>
+      <thead><tr><th>Folio</th><th>Scout</th><th>Edad</th><th>Unidad</th><th>Colegio</th><th>Fecha</th><th>Pago</th></tr></thead>
+      <tbody>
+        ${last5.map(r => {
+          const p = pagos[r.folio];
+          return `<tr>
+            <td><span class="tag tag-folio">${r.folio}</span></td>
+            <td><div class="td-nombre">${r.scout.nombres} ${r.scout.apPaterno} ${r.scout.apMaterno}</div><div class="td-sub">${r.scout.rut}</div></td>
+            <td><span class="tag tag-edad">${r.scout.edad}</span></td>
+            <td>${r.scout.unidad||'—'}</td>
+            <td>${r.scout.colegio}</td>
+            <td>${formatDate(r.fechaRegistro)}</td>
+            <td>${badgeEstado(p ? p.estado : 'pendiente')}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+// ══ REGISTROS ══════════════════════════════════════════
+function getRegFiltered() {
+  const q   = document.getElementById('regSearch').value.toLowerCase();
+  const rel = document.getElementById('regFilterRel').value;
+  const er  = document.getElementById('regFilterEdad').value;
+  return allRecords.filter(r => {
+    const nombre = `${r.scout.nombres} ${r.scout.apPaterno} ${r.scout.apMaterno}`.toLowerCase();
+    const mq = !q || nombre.includes(q) || r.scout.rut.includes(q) || r.scout.colegio.toLowerCase().includes(q) || r.folio.toLowerCase().includes(q);
+    const mr = !rel || r.scout.religion === rel;
+    let me = true;
+    if (er) { const [mn,mx] = er.split('-').map(Number); const e = parseInt(r.scout.edad); me = !isNaN(e) && e >= mn && e <= mx; }
+    return mq && mr && me;
+  });
+}
+function renderRegistros() { regPage = 1; drawRegistros(); }
+function drawRegistros() {
+  const filtered = getRegFiltered();
+  document.getElementById('regCount').textContent = filtered.length + ' registro' + (filtered.length!==1?'s':'');
+  const page = filtered.slice((regPage-1)*PER, regPage*PER);
+  const body = document.getElementById('regTableBody');
+  if (!filtered.length) {
+    body.innerHTML = `<div class="empty"><div class="ei">📋</div><h3>Sin registros</h3><p><a href="index.html">Registrar un scout →</a></p></div>`;
+    document.getElementById('regPag').innerHTML = '';
+    return;
+  }
+  body.innerHTML = `<table>
+    <thead><tr><th>Folio</th><th>Nombre</th><th>RUT</th><th>Edad</th><th>Colegio</th><th>Registro</th><th>Apoderado</th><th></th></tr></thead>
+    <tbody>${page.map((r,i) => `<tr>
+      <td><span class="tag tag-folio">${r.folio}</span></td>
+      <td><div class="td-nombre">${r.scout.nombres} ${r.scout.apPaterno} ${r.scout.apMaterno}</div><div class="td-sub">${r.scout.correo!=='—'?r.scout.correo:''}</div></td>
+      <td>${r.scout.rut}</td>
+      <td><span class="tag tag-edad">${r.scout.edad}</span></td>
+      <td>${r.scout.colegio}</td>
+      <td><div>${formatDate(r.fechaRegistro)}</div><div class="td-sub">${formatTime(r.fechaRegistro)}</div></td>
+      <td><div>${r.apoderado.nombre}</div><div class="td-sub">${r.apoderado.parentesco}</div></td>
+      <td style="white-space:nowrap">
+        <button class="btn-sm btn-sm-verde" onclick="openRegModal(${(regPage-1)*PER+i})">Ver</button>
+        <button class="btn-sm btn-sm-del" onclick="delReg('${r.folio}')">🗑</button>
+      </td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+  renderPag(filtered.length, regPage, 'regPag', n => { regPage=n; drawRegistros(); });
+}
+
+function openRegModal(idx) {
+  const r = getRegFiltered()[idx]; if (!r) return;
+  document.getElementById('regModalTitle').textContent = `${r.scout.nombres} ${r.scout.apPaterno}`;
+  document.getElementById('regModalFolio').textContent = r.folio;
+  document.getElementById('regModalBody').innerHTML = `
+    <div class="modal-sec"><h3>Scout</h3><div class="modal-grid">
+      <div class="mf-item"><span class="mf-lbl">RUT</span><span class="mf-val">${r.scout.rut}</span></div>
+      <div class="mf-item"><span class="mf-lbl">Nombre completo</span><span class="mf-val">${r.scout.nombres} ${r.scout.apPaterno} ${r.scout.apMaterno}</span></div>
+      <div class="mf-item"><span class="mf-lbl">Fecha de nacimiento</span><span class="mf-val">${fmtFechaNac(r.scout.fechaNac)}</span></div>
+      <div class="mf-item"><span class="mf-lbl">Edad</span><span class="mf-val">${r.scout.edad}</span></div>
+      <div class="mf-item"><span class="mf-lbl">Teléfono</span><span class="mf-val">${r.scout.telefono}</span></div>
+      <div class="mf-item"><span class="mf-lbl">Correo</span><span class="mf-val">${r.scout.correo}</span></div>
+      <div class="mf-item"><span class="mf-lbl">Colegio</span><span class="mf-val">${r.scout.colegio}</span></div>
+      <div class="mf-item"><span class="mf-lbl">Unidad Scout</span><span class="mf-val">${r.scout.unidad||'—'}</span></div>
+      <div class="mf-item"><span class="mf-lbl">Religión</span><span class="mf-val">${r.scout.religion}</span></div>
+      <div class="mf-item" style="grid-column:span 2"><span class="mf-lbl">Dirección</span><span class="mf-val">${r.scout.direccion}</span></div>
+    </div></div>
+    <div class="modal-sec"><h3>Apoderado</h3><div class="modal-grid">
+      <div class="mf-item"><span class="mf-lbl">Nombre</span><span class="mf-val">${r.apoderado.nombre}</span></div>
+      <div class="mf-item"><span class="mf-lbl">RUT</span><span class="mf-val">${r.apoderado.rut}</span></div>
+      <div class="mf-item"><span class="mf-lbl">Parentesco</span><span class="mf-val">${r.apoderado.parentesco}</span></div>
+      <div class="mf-item"><span class="mf-lbl">Teléfono</span><span class="mf-val">${r.apoderado.telefono}</span></div>
+      <div class="mf-item" style="grid-column:span 2"><span class="mf-lbl">Correo</span><span class="mf-val">${r.apoderado.correo}</span></div>
+    </div></div>
+    <div class="modal-sec"><h3>Emergencia</h3><div class="modal-grid">
+      <div class="mf-item"><span class="mf-lbl">Nombre</span><span class="mf-val">${r.emergencia.nombre}</span></div>
+      <div class="mf-item"><span class="mf-lbl">Parentesco</span><span class="mf-val">${r.emergencia.parentesco}</span></div>
+      <div class="mf-item"><span class="mf-lbl">Teléfono</span><span class="mf-val">${r.emergencia.telefono}</span></div>
+    </div></div>`;
+  document.getElementById('ovReg').classList.add('open');
+}
+
+function delReg(folio) {
+  if (!confirm(`¿Eliminar el registro ${folio}?`)) return;
+  allRecords = allRecords.filter(r => r.folio !== folio);
+  delete pagos[folio];
+  localStorage.setItem('scout_registros', JSON.stringify(allRecords));
+  savePagos();
+  renderDashboard(); renderRegistros(); renderPagos();
+}
+
+// ══ PAGOS ══════════════════════════════════════════════
+function getPagoFiltered() {
+  const q  = document.getElementById('pagoSearch').value.toLowerCase();
+  const es = document.getElementById('pagoFilterEstado').value;
+  const un = document.getElementById('pagoFilterUnidad').value;
+  return allRecords.filter(r => {
+    const nombre = `${r.scout.nombres} ${r.scout.apPaterno} ${r.scout.apMaterno}`.toLowerCase();
+    const mq = !q || nombre.includes(q) || r.scout.rut.includes(q) || r.folio.toLowerCase().includes(q) || (r.scout.unidad||'').toLowerCase().includes(q);
+    const p = pagos[r.folio];
+    const me = !es || (p && p.estado === es);
+    const mu = !un || r.scout.unidad === un;
+    return mq && me && mu;
+  });
+}
+
+function renderPagos() { pagPage = 1; drawPagos(); }
+function drawPagos() {
+  const filtered = getPagoFiltered();
+  const total = filtered.length;
+
+  // stats
+  const pVals = allRecords.map(r => pagos[r.folio]).filter(Boolean);
+  const totalEsp = pVals.reduce((s,p)=>s+(p.monto||0),0);
+  const totalRec = pVals.reduce((s,p)=>s+(p.pagado||0),0);
+  const nPag = pVals.filter(p=>p.estado==='pagado').length;
+  const nPend = pVals.filter(p=>p.estado==='pendiente').length;
+  const nParc = pVals.filter(p=>p.estado==='parcial').length;
+  const nExen = pVals.filter(p=>p.estado==='exento').length;
+  document.getElementById('pagoStats').innerHTML = `
+    <div class="stat-card"><div class="stat-icon si-verde">✅</div><div><div class="stat-num">${nPag}</div><div class="stat-label">Pagados</div></div></div>
+    <div class="stat-card"><div class="stat-icon si-rojo">⏳</div><div><div class="stat-num">${nPend}</div><div class="stat-label">Pendientes</div></div></div>
+    <div class="stat-card"><div class="stat-icon si-naranja">🔄</div><div><div class="stat-num">${nParc}</div><div class="stat-label">Parciales</div></div></div>
+    <div class="stat-card"><div class="stat-icon si-azul">💵</div><div><div class="stat-num">$${fmt$(totalRec)}</div><div class="stat-label">Recaudado / $${fmt$(totalEsp)}</div></div></div>
+  `;
+
+  document.getElementById('pagoCount').textContent = total + ' scout' + (total!==1?'s':'');
+  const page = filtered.slice((pagPage-1)*PER, pagPage*PER);
+  const body = document.getElementById('pagoTableBody');
+
+  if (!filtered.length) {
+    body.innerHTML = `<div class="empty"><div class="ei">💰</div><h3>Sin resultados</h3><p>No hay scouts con ese filtro.</p></div>`;
+    document.getElementById('pagoPag').innerHTML = '';
+    return;
+  }
+
+  body.innerHTML = `<table>
+    <thead><tr>
+      <th>Folio</th>
+      <th>Nombre Completo</th>
+      <th>Apellidos</th>
+      <th>RUT</th>
+      <th>Unidad</th>
+      <th>Monto a Pagar</th>
+      <th>Pagado</th>
+      <th>Saldo</th>
+      <th>Estado</th>
+      <th></th>
+    </tr></thead>
+    <tbody>${page.map((r,i) => {
+      const p = pagos[r.folio] || {};
+      const monto  = p.monto  || 0;
+      const pagado = p.pagado || 0;
+      const saldo  = monto - pagado;
+      const unidadBg = {
+        'Manada':'#e3f2fd','Banda':'#e8f5e9',
+        'Scout':'#fff8e1','Guías':'#fce4ec',
+        'Avanzada':'#f3e5f5','Clan':'#263238'
+      };
+      const unidadFg = {
+        'Manada':'#1565c0','Banda':'#2e7d32',
+        'Scout':'#e65100','Guías':'#880e4f',
+        'Avanzada':'#6a1b9a','Clan':'#eceff1'
+      };
+      const unidadLabel = {
+        'Manada':'Manada 7–11','Banda':'Banda 7–11',
+        'Scout':'Scout 11–15','Guías':'Guías 11–15',
+        'Avanzada':'Avanzada 15–17','Clan':'Clan 17–21'
+      };
+      const unidadColor = unidadBg[r.scout.unidad] || '#f5f5f5';
+      const unidadTxt   = unidadFg[r.scout.unidad] || '#666';
+      return `<tr>
+        <td><span class="tag tag-folio">${r.folio}</span></td>
+        <td>
+          <div class="td-nombre">${r.scout.nombres}</div>
+        </td>
+        <td>
+          <div style="font-weight:600">${r.scout.apPaterno} ${r.scout.apMaterno}</div>
+        </td>
+        <td>
+          <span style="font-family:monospace;font-size:.82rem;background:#f5f5f5;padding:2px 7px;border-radius:5px">${r.scout.rut}</span>
+        </td>
+        <td>
+          <span style="background:${unidadColor};color:${unidadTxt};padding:3px 9px;border-radius:20px;font-size:.75rem;font-weight:700;white-space:nowrap">${unidadLabel[r.scout.unidad] || (r.scout.unidad || '—')}</span>
+        </td>
+        <td style="font-weight:700">$${fmt$(monto)}</td>
+        <td><strong style="color:#2e7d32">$${fmt$(pagado)}</strong></td>
+        <td style="font-weight:600;color:${saldo>0?'#c62828':saldo===0?'#2e7d32':'#1565c0'}">${saldo>0?'$'+fmt$(saldo):saldo<0?'-$'+fmt$(Math.abs(saldo)):'✓ Al día'}</td>
+        <td>${badgeEstado(p.estado||'pendiente')}</td>
+        <td style="white-space:nowrap">
+          <button class="btn-sm btn-sm-pagar" onclick="openPagoModal('${r.folio}')">💳 Registrar pago</button>
+        </td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+  renderPag(total, pagPage, 'pagoPag', n => { pagPage=n; drawPagos(); });
+}
+
+// modal pago
+let currentPagoFolio = null;
+function openPagoModal(folio) {
+  currentPagoFolio = folio;
+  const r = allRecords.find(x => x.folio === folio);
+  const p = pagos[folio] || {};
+  document.getElementById('pagoModalTitle').textContent = 'Pago – ' + r.scout.nombres + ' ' + r.scout.apPaterno;
+  document.getElementById('pagoScoutInfo').innerHTML = `
+    <div style="font-weight:700;font-size:.95rem">${r.scout.nombres} ${r.scout.apPaterno} ${r.scout.apMaterno}</div>
+    <div style="font-size:.8rem;color:#555;margin-top:3px">${r.scout.rut} &nbsp;·&nbsp; ${r.scout.edad} &nbsp;·&nbsp; ${r.folio}</div>
+  `;
+  document.getElementById('pagoMonto').value  = p.monto  || configPago.montoBase;
+  document.getElementById('pagoPagado').value = p.pagado || '';
+  document.getElementById('pagoFecha').value  = p.fecha  || new Date().toISOString().slice(0,10);
+  document.getElementById('pagoMetodo').value = p.metodo || '';
+  document.getElementById('pagoRef').value    = p.ref    || '';
+  document.getElementById('pagoEstado').value = p.estado || 'pendiente';
+  document.getElementById('pagoObs').value    = p.obs    || '';
+  updatePagoStatus();
+  document.getElementById('ovPago').classList.add('open');
+}
+
+function updatePagoStatus() {
+  const monto  = parseFloat(document.getElementById('pagoMonto').value)  || 0;
+  const pagado = parseFloat(document.getElementById('pagoPagado').value) || 0;
+  const pw = document.getElementById('pagoProgressWrap');
+  const bar = document.getElementById('pagoBar');
+  const lbl = document.getElementById('pagoBarLabel');
+  if (monto > 0) {
+    pw.style.display = 'block';
+    const pct = Math.min(100, Math.round(pagado/monto*100));
+    bar.style.width = pct + '%';
+    bar.style.background = pct >= 100 ? '#2e7d32' : pct > 0 ? '#f9a825' : '#e0e0e0';
+    lbl.textContent = `$${fmt$(pagado)} de $${fmt$(monto)} (${pct}%)`;
+  } else { pw.style.display = 'none'; }
+  // auto-estado
+  const sel = document.getElementById('pagoEstado');
+  if (sel.value !== 'exento') {
+    if (pagado <= 0)      sel.value = 'pendiente';
+    else if (pagado >= monto) sel.value = 'pagado';
+    else                  sel.value = 'parcial';
+  }
+}
+function syncEstadoManual() { /* manual override, no auto */ }
+
+function guardarPago() {
+  if (!currentPagoFolio) return;
+  pagos[currentPagoFolio] = {
+    monto:  parseFloat(document.getElementById('pagoMonto').value)  || 0,
+    pagado: parseFloat(document.getElementById('pagoPagado').value) || 0,
+    fecha:  document.getElementById('pagoFecha').value,
+    metodo: document.getElementById('pagoMetodo').value,
+    ref:    document.getElementById('pagoRef').value,
+    estado: document.getElementById('pagoEstado').value,
+    obs:    document.getElementById('pagoObs').value,
+  };
+  savePagos();
+  closeOverlayDirect('ovPago');
+  renderDashboard(); renderPagos();
+}
+
+// config
+function openConfigPago() {
+  document.getElementById('configMonto').value = configPago.montoBase;
+  document.getElementById('ovConfig').classList.add('open');
+}
+function saveConfig() {
+  configPago.montoBase = parseFloat(document.getElementById('configMonto').value) || 15000;
+  saveConfigLocal();
+  closeOverlayDirect('ovConfig');
+  alert('Monto base guardado: $' + fmt$(configPago.montoBase));
+}
+
+// ══ HELPERS ════════════════════════════════════════════
+function badgeEstado(e) {
+  const map = { pagado:'tag-pagado', pendiente:'tag-pendiente', parcial:'tag-parcial', exento:'tag-exento' };
+  const txt = { pagado:'✅ Pagado', pendiente:'⏳ Pendiente', parcial:'🔄 Parcial', exento:'🔵 Exento' };
+  return `<span class="tag ${map[e]||'tag-pendiente'}">${txt[e]||e}</span>`;
+}
+function fmt$(n) { return Number(n).toLocaleString('es-CL'); }
+function formatDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('es-CL', { day:'2-digit', month:'2-digit', year:'numeric' });
+}
+function formatTime(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleTimeString('es-CL', { hour:'2-digit', minute:'2-digit' });
+}
+function fmtFechaNac(d) {
+  if (!d || d === '—') return '—';
+  const [y,m,day] = d.split('-'); return `${day}/${m}/${y}`;
+}
+
+function renderPag(total, cur, containerId, cb) {
+  const pages = Math.ceil(total/PER);
+  const el = document.getElementById(containerId);
+  if (pages <= 1) { el.innerHTML=''; return; }
+  let h = `<button class="pg-btn" onclick="(${cb.toString()})(${cur-1})" ${cur===1?'disabled':''}>‹</button>`;
+  for (let i=1;i<=pages;i++) h += `<button class="pg-btn ${i===cur?'active':''}" onclick="(${cb.toString()})(${i})">${i}</button>`;
+  h += `<button class="pg-btn" onclick="(${cb.toString()})(${cur+1})" ${cur===pages?'disabled':''}>›</button>`;
+  el.innerHTML = h;
+}
+
+// overlays
+function closeOverlay(id, e) { if (e.target === document.getElementById(id)) closeOverlayDirect(id); }
+function closeOverlayDirect(id) { document.getElementById(id).classList.remove('open'); }
+
+// ══ EXPORT ════════════════════════════════════════════
+function exportCSV() {
+  if (!allRecords.length) { alert('No hay registros.'); return; }
+  const hdr = ['Folio','Fecha Registro','RUT Scout','Nombres','Ap. Paterno','Ap. Materno','Fecha Nac.','Edad','Teléfono','Correo','Colegio','Dirección','Religión','Nombre Apoderado','RUT Apoderado','Parentesco','Correo Apoderado','Tel. Apoderado','Nombre Emergencia','Parentesco Emergencia','Tel. Emergencia'];
+  const rows = allRecords.map(r=>[
+    r.folio,formatDate(r.fechaRegistro),r.scout.rut,r.scout.nombres,r.scout.apPaterno,r.scout.apMaterno,
+    fmtFechaNac(r.scout.fechaNac),r.scout.edad,r.scout.telefono,r.scout.correo,r.scout.colegio,r.scout.direccion,r.scout.religion,
+    r.apoderado.nombre,r.apoderado.rut,r.apoderado.parentesco,r.apoderado.correo,r.apoderado.telefono,
+    r.emergencia.nombre,r.emergencia.parentesco,r.emergencia.telefono
+  ].map(c=>`"${String(c).replace(/"/g,'""')}"`));
+  dlCSV([hdr,...rows.map(r=>r.join(','))].join('\n'), 'scouts_' + today() + '.csv');
+}
+
+function exportPagosCSV() {
+  if (!allRecords.length) { alert('No hay registros.'); return; }
+  const hdr = ['Folio','Scout','RUT','Monto a Pagar','Pagado','Saldo','Fecha Pago','Método','Ref/Comprobante','Estado','Observaciones'];
+  const rows = allRecords.map(r=>{
+    const p = pagos[r.folio]||{};
+    const saldo = (p.monto||0)-(p.pagado||0);
+    return [r.folio,`${r.scout.nombres} ${r.scout.apPaterno} ${r.scout.apMaterno}`,
+      r.scout.rut,p.monto||0,p.pagado||0,saldo,
+      p.fecha?fmtFechaNac(p.fecha):'',p.metodo||'',p.ref||'',p.estado||'pendiente',p.obs||''
+    ].map(c=>`"${String(c).replace(/"/g,'""')}"`);
+  });
+  dlCSV([hdr,...rows.map(r=>r.join(','))].join('\n'), 'pagos_scout_' + today() + '.csv');
+}
+
+function dlCSV(csv, filename) {
+  const blob = new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+  URL.revokeObjectURL(a.href);
+}
+function today() { return new Date().toISOString().slice(0,10); }
+
+// ══ INIT ══════════════════════════════════════════════
+loadData();
+// auto-open pagos submenu if coming from pagos link
+const hash = location.hash.replace('#','');
+if (hash) showSection(hash);
+</script>
+</body>
+</html>
